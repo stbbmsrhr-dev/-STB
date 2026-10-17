@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบเบิกจ่ายวัสดุสำนักงาน - เซอร์วิสเดอะเบสท์</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Prompt) -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf for PDF Export (สำหรับใบเสร็จเดี่ยว) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #f8fafc; }
+        .playful-card { background: #ffffff; border-radius: 20px; box-shadow: 0 10px 40px -10px rgba(15, 23, 42, 0.1); border: 1px solid #e2e8f0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .playful-card:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.15); border-color: #cbd5e1; }
+        .playful-btn { transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); cursor: pointer; }
+        .playful-btn:hover { transform: scale(1.03) translateY(-2px); }
+        .playful-btn:active { transform: scale(0.97); }
+        @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(15px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .animate-fade-slide { animation: fadeSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f97316; } /* Orange scrollbar hover */
+
+        /* Login Overlay Styling - Navy/Orange Theme */
+        #login-overlay { 
+            position: fixed; inset: 0; z-index: 99990; 
+            background-color: #0f172a; /* Navy background */
+            background-image: url('Username01.jpg'); 
+            background-size: cover; background-position: center; 
+            display: flex; justify-content: center; align-items: center; 
+            transition: opacity 0.5s;
+        }
+        .login-card {
+            background-color: rgba(15, 23, 42, 0.85); /* Navy transparent */
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px; padding: 40px; width: 100%; max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .login-input-group { position: relative; margin-bottom: 20px; }
+        .login-input {
+            width: 100%; background-color: rgba(255,255,255,0.05); color: white;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 12px 20px 12px 50px;
+            font-size: 14px; outline: none; transition: border-color 0.2s, background-color 0.2s;
+        }
+        .login-input:focus { border-color: #f97316; background-color: rgba(255,255,255,0.1); }
+        .login-input::placeholder { color: rgba(255, 255, 255, 0.4); }
+        .login-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #f97316; font-size: 18px; }
+        .toggle-password { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5); cursor: pointer; font-size: 18px; transition: color 0.2s; }
+        .toggle-password:hover { color: #f97316; }
+        .login-btn {
+            background-color: #f97316; color: white; border: none; border-radius: 16px;
+            padding: 12px 40px; font-weight: bold; font-size: 16px; cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s; display: block; margin: 0 auto;
+            width: 100%;
+        }
+        .login-btn:hover { background-color: #ea580c; transform: scale(1.02); box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.4); }
+
+        /* Loader - Orange Theme */
+        #global-loader { position: fixed; inset: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.3s; }
+        .spinner { width: 60px; height: 60px; border: 6px solid #e2e8f0; border-top-color: #f97316; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Print Mode */
+        @media print {
+            body { background: white !important; }
+            body.print-slip .main-app-container { display: none !important; }
+            body.print-slip #slip-printable-area { display: block !important; }
+            body:not(.print-slip) #slip-printable-area { display: none !important; }
+            .no-print { display: none !important; }
+            .print-title { display: block !important; }
+            .printable-section { border: none !important; box-shadow: none !important; padding: 0 !important; }
+            table { font-size: 12px !important; }
+        }
+        .print-title { display: none; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased h-screen flex flex-col overflow-hidden selection:bg-orange-200 selection:text-orange-900">
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-overlay" style="display: none;">
+        <div class="login-card text-center relative">
+            <div class="w-16 h-16 bg-slate-800/80 border border-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-6 text-orange-500 text-3xl shadow-lg"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <h2 class="text-2xl font-extrabold text-white mb-8 tracking-wide">ระบบเบิกจ่ายวัสดุสำนักงาน</h2>
+            <form onsubmit="window.handleLogin(event)" class="text-left">
+                <div class="mb-5">
+                    <label class="block text-slate-300 text-xs font-bold mb-2 ml-1 uppercase tracking-wider">Username</label>
+                    <div class="login-input-group">
+                        <i class="fa-solid fa-user login-icon"></i>
+                        <input type="text" id="login-username" class="login-input" placeholder="กรอกรหัสพนักงานหรือชื่อผู้ใช้">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-slate-300 text-xs font-bold mb-2 ml-1 uppercase tracking-wider">Password</label>
+                    <div class="login-input-group">
+                        <i class="fa-solid fa-lock login-icon"></i>
+                        <input type="password" id="login-password" class="login-input" placeholder="กรอกรหัสผ่าน">
+                        <i class="fa-solid fa-eye-slash toggle-password" onclick="window.toggleLoginPassword()" id="eye-icon"></i>
+                    </div>
+                </div>
+                <button type="submit" class="login-btn mt-8 shadow-lg shadow-orange-500/20">เข้าสู่ระบบ</button>
+                <div class="mt-8 text-center border-t border-slate-700/50 pt-6">
+                    <button type="button" onclick="window.continueAsEmployee()" class="text-sm text-slate-300 font-bold hover:text-white bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700 w-full py-3 rounded-xl transition-colors">
+                        <i class="fa-solid fa-users mr-2 text-orange-400"></i> เข้าสู่ระบบในฐานะพนักงาน<br><span class="text-[10px] text-slate-400 font-normal mt-1 block">(สำหรับทำรายการเบิกเท่านั้น)</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- GLOBAL LOADER -->
+    <div id="global-loader">
+        <div class="text-center">
+            <div class="spinner mb-6 shadow-lg shadow-orange-500/20"></div>
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-2">กำลังโหลดข้อมูล...</h2>
+            <p class="text-sm font-bold text-slate-500" id="loader-text">กรุณารอสักครู่</p>
+        </div>
+    </div>
+
+    <div id="main-app-container" class="main-app-container flex h-screen w-full overflow-hidden" style="display: none; opacity: 0; transition: opacity 0.5s;">
+        
+        <!-- SIDEBAR (Navy Blue Theme) -->
+        <aside id="main-sidebar" class="w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex-shrink-0 flex flex-col justify-between shadow-2xl z-30 overflow-hidden">
+            <div>
+                <div class="h-24 px-6 flex items-center gap-4 border-b border-slate-800 bg-slate-900 pt-2">
+                    <div class="bg-gradient-to-tr from-orange-500 to-orange-400 text-white p-3.5 rounded-xl shadow-lg shadow-orange-500/20 transform rotate-3 flex-shrink-0"><i class="fa-solid fa-boxes-stacked text-xl"></i></div>
+                    <div>
+                        <h1 class="text-sm font-extrabold text-white tracking-wide drop-shadow-md">เซอร์วิสเดอะเบสท์</h1>
+                        <p class="text-[10px] text-orange-400 font-bold tracking-wider mt-1 leading-snug"><i class="fa-solid fa-building mr-1"></i>ระบบเบิกจ่าย</p>
+                    </div>
+                </div>
+
+                <nav class="p-4 space-y-1.5 mt-2 h-[calc(100vh-180px)] overflow-y-auto no-scrollbar">
+                    <button onclick="window.switchTab('dashboard')" id="sidebar-tab-dashboard" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-chart-pie text-lg group-hover:scale-110 transition-transform duration-300"></i></div>แดชบอร์ด
+                    </button>
+                    <button onclick="window.switchTab('inventory')" id="sidebar-tab-inventory" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-warehouse text-lg group-hover:scale-110 transition-transform duration-300"></i></div>จัดการคลังวัสดุ
+                    </button>
+                    <button onclick="window.switchTab('checkout')" id="sidebar-tab-checkout" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-hand-holding-hand text-lg group-hover:scale-110 transition-transform duration-300"></i></div>ทำรายการเบิก-ยืม
+                    </button>
+                    <button onclick="window.switchTab('users')" id="sidebar-tab-users" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-users-gear text-lg group-hover:scale-110 transition-transform"></i></div>ผู้ใช้งานระบบ
+                    </button>
+                    
+                    <div class="pt-5 pb-2"><p class="px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">การอนุมัติ & ประวัติ</p></div>
+
+                    <button onclick="window.switchTab('approvals')" id="sidebar-tab-approvals" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left relative">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-clipboard-check text-lg group-hover:scale-110 transition-transform"></i></div>อนุมัติคำขอ
+                        <span id="badge-pending" class="absolute right-3 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                    </button>
+                    <button onclick="window.switchTab('consumed')" id="sidebar-tab-consumed" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-box-open text-lg group-hover:scale-110 transition-transform"></i></div>ประวัติเบิก (เบิกขาด)
+                    </button>
+                    <button onclick="window.switchTab('borrow')" id="sidebar-tab-borrow" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-rotate-left text-lg group-hover:scale-110 transition-transform"></i></div>รายการยืม - คืน
+                    </button>
+                    
+                    <div class="pt-5 pb-2"><p class="px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">การตั้งค่า</p></div>
+                    
+                    <button onclick="window.switchTab('trash')" id="sidebar-tab-trash" class="sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left">
+                        <div class="w-6 flex justify-center"><i class="fa-solid fa-trash-can text-lg group-hover:scale-110 transition-transform"></i></div>ถังขยะ
+                    </button>
+                </nav>
+            </div>
+            
+            <div class="p-5 border-t border-slate-800 mt-auto bg-slate-900/80 backdrop-blur">
+                <button onclick="window.logout()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded-xl p-3 text-sm font-bold transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i> ออกจากระบบ
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT WRAPPER -->
+        <main id="main-content" class="flex-1 flex flex-col h-screen overflow-y-auto relative scroll-smooth bg-slate-50">
+            <div class="max-w-[1400px] mx-auto w-full pb-20 p-4 sm:p-6 lg:p-8 relative z-10">
+                
+                <!-- Back Button Container -->
+                <div id="back-btn-container" class="mb-4 hidden">
+                    <button onclick="window.goBack()" class="playful-btn bg-white border border-slate-200 text-slate-600 hover:text-orange-600 hover:border-orange-200 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-colors">
+                        <i class="fa-solid fa-arrow-left"></i> ย้อนกลับ
+                    </button>
+                </div>
+
+                <!-- VIEW: DASHBOARD -->
+                <div id="view-dashboard" class="space-y-6 hidden">
+                    <div class="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-chart-line"></i></div>
+                            <div><h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">แดชบอร์ดภาพรวม</h2></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="playful-card p-6 flex flex-col gap-3 relative overflow-hidden group border-b-4 border-b-slate-800">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[13px] text-slate-500 font-bold mb-1 uppercase tracking-wide">อุปกรณ์ในคลังทั้งหมด</p>
+                                    <h3 id="stat-total-items" class="text-4xl font-extrabold text-slate-900">0</h3>
+                                </div>
+                                <div class="w-12 h-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-boxes-stacked"></i></div>
+                            </div>
+                        </div>
+                        <div class="playful-card p-6 flex flex-col gap-3 relative overflow-hidden group border-b-4 border-b-orange-500 cursor-pointer" onclick="window.switchTab('approvals')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[13px] text-slate-500 font-bold mb-1 uppercase tracking-wide">คำขอรอการอนุมัติ</p>
+                                    <h3 id="stat-total-tx" class="text-4xl font-extrabold text-orange-600">0</h3>
+                                </div>
+                                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-clipboard-list"></i></div>
+                            </div>
+                        </div>
+                        <div class="playful-card p-6 flex flex-col gap-3 relative overflow-hidden group border-b-4 border-b-amber-500 cursor-pointer" onclick="window.switchTab('borrow')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[13px] text-slate-500 font-bold mb-1 uppercase tracking-wide">ยืม (รอดำเนินการคืน)</p>
+                                    <h3 id="stat-pending-tx" class="text-4xl font-extrabold text-amber-500">0</h3>
+                                </div>
+                                <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-hourglass-half"></i></div>
+                            </div>
+                        </div>
+                        <div class="playful-card p-6 flex flex-col gap-3 relative overflow-hidden group border-b-4 border-b-emerald-600 cursor-pointer" onclick="window.switchTab('consumed')">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[13px] text-slate-500 font-bold mb-1 uppercase tracking-wide">เบิกใช้งาน (เบิกขาด)</p>
+                                    <h3 id="stat-consumed-tx" class="text-4xl font-extrabold text-emerald-600">0</h3>
+                                </div>
+                                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-check-double"></i></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                        <div class="playful-card p-6">
+                            <h3 class="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-6"><i class="fa-solid fa-chart-column text-orange-500"></i> 5 อันดับอุปกรณ์เบิกสูงสุด</h3>
+                            <div class="relative h-[280px] w-full"><canvas id="itemChart"></canvas></div>
+                        </div>
+                        <div class="playful-card p-6">
+                            <h3 class="text-lg font-extrabold text-slate-800 flex items-center gap-2 mb-6"><i class="fa-solid fa-chart-pie text-orange-500"></i> สถิติเบิกแยกแผนก</h3>
+                            <div class="relative h-[280px] w-full flex justify-center"><canvas id="deptChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: INVENTORY -->
+                <div id="view-inventory" class="hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-warehouse"></i></div>
+                            <div><h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">จัดการคลังวัสดุสำนักงาน</h2></div>
+                        </div>
+                        <button onclick="window.openAddItemModal()" class="playful-btn bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg shadow-slate-900/20 font-bold text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-plus text-orange-500"></i> เพิ่มรายการใหม่
+                        </button>
+                    </div>
+
+                    <div class="playful-card overflow-hidden">
+                        <div class="p-5 border-b border-slate-100 bg-white flex flex-wrap gap-4 items-center justify-between">
+                            <div class="flex flex-wrap gap-3 items-center flex-1">
+                                <div class="relative min-w-[280px] flex-1 sm:flex-none">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="search-inventory" oninput="window.renderInventory()" placeholder="ค้นหาชื่อวัสดุในคลัง..." class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-semibold focus:border-orange-500 focus:bg-white transition-colors">
+                                </div>
+                                <select id="filter-category" onchange="window.renderInventory()" class="py-3 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none cursor-pointer font-bold text-slate-700 focus:border-orange-500">
+                                    <option value="all">📁 ทุกหมวดหมู่</option>
+                                    <option value="เครื่องแบบพนักงาน">👕 หมวดเครื่องแบบ</option>
+                                    <option value="อุปกรณ์">🛠️ หมวดอุปกรณ์</option>
+                                    <option value="อื่นๆ">📦 หมวดอื่นๆ</option>
+                                </select>
+                            </div>
+                            <div class="text-xs px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-extrabold uppercase tracking-wide border border-slate-200">ทั้งหมด <span id="total-items-count" class="text-orange-600 text-sm">0</span> รายการ</div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[12px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                        <th class="p-5 text-center w-16">No.</th>
+                                        <th class="p-5">รายการวัสดุสำนักงาน</th>
+                                        <th class="p-5">ไซส์/ขนาด</th>
+                                        <th class="p-5">หมวดหมู่</th>
+                                        <th class="p-5 text-center">ประเภท</th>
+                                        <th class="p-5 text-right">ราคา (฿)</th>
+                                        <th class="p-5 text-center">คงเหลือ</th>
+                                        <th class="p-5 text-center w-28">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventory-tbody" class="divide-y divide-slate-100 text-sm bg-white"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: CHECKOUT -->
+                <div id="view-checkout" class="hidden space-y-6 max-w-4xl mx-auto">
+                    <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-pen-to-square"></i></div>
+                            <div><h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">ทำรายการเบิก / ยืม อุปกรณ์</h2></div>
+                        </div>
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <button id="btn-emp-logout" onclick="window.logout()" class="hidden playful-btn bg-white border border-slate-200 text-slate-600 hover:text-white hover:bg-slate-800 hover:border-slate-800 px-5 py-3 rounded-xl shadow-sm font-bold text-sm flex items-center justify-center gap-2 transition-all w-full sm:w-auto">
+                                <i class="fa-solid fa-arrow-left"></i> กลับหน้าล็อกอิน
+                            </button>
+                            <button id="btn-show-qr" onclick="window.openQrModal()" class="playful-btn bg-gradient-to-r from-slate-800 to-slate-900 text-white px-5 py-3 rounded-xl shadow-lg font-bold text-sm flex items-center gap-2 w-full sm:w-auto justify-center border border-slate-700 hover:border-orange-500">
+                                <i class="fa-solid fa-qrcode text-orange-400 text-lg"></i> แสกนทำรายการ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="playful-card overflow-hidden relative border-t-8 border-t-orange-500">
+                        <form id="checkout-form" onsubmit="window.handleCheckoutSubmit(event)" class="p-6 sm:p-10 space-y-8 bg-white">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-wide"><i class="fa-regular fa-id-card text-lg text-orange-500"></i> ข้อมูลผู้ทำรายการ</h3>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                    <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">รหัสพนักงาน <span class="text-rose-500">*</span></label><input type="text" id="chk-emp-id" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold"></div>
+                                    <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ชื่อ - สกุล <span class="text-rose-500">*</span></label><input type="text" id="chk-emp-name" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold"></div>
+                                    <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ตำแหน่ง <span class="text-rose-500">*</span></label><input type="text" id="chk-position" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold"></div>
+                                    <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ฝ่าย / แผนก <span class="text-rose-500">*</span></label><input type="text" id="chk-department" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold"></div>
+                                    
+                                    <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                        <div>
+                                            <label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ประเภทพนักงาน <span class="text-rose-500">*</span></label>
+                                            <select id="chk-emp-type" onchange="window.toggleCustomEmpType()" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold text-slate-700">
+                                                <option value="พนักงานประจำ 1 ปี">พนักงานประจำ 1 ปี</option>
+                                                <option value="พนักงานเข้าใหม่น้อยกว่า 1 ปี">พนักงานเข้าใหม่น้อยกว่า 1 ปี</option>
+                                                <option value="นักศึกษาฝึกงาน">นักศึกษาฝึกงาน</option>
+                                                <option value="custom">อื่น ๆ (พิมพ์ระบุเอง)...</option>
+                                            </select>
+                                        </div>
+                                        <div id="chk-emp-type-custom-container" class="hidden">
+                                            <label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ระบุประเภทพนักงาน <span class="text-rose-500">*</span></label>
+                                            <input type="text" id="chk-emp-type-custom" class="w-full px-4 py-3 bg-white border border-orange-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold" placeholder="ระบุประเภท...">
+                                        </div>
+                                    </div>
+                                    
+                                    <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">วันที่ทำรายการ <span class="text-rose-500">*</span></label><input type="date" id="chk-date" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold text-slate-700"></div>
+                                </div>
+                            </div>
+
+                            <div class="h-px bg-slate-200 w-full my-8"></div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-5">
+                                    <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2 uppercase tracking-wide"><i class="fa-solid fa-boxes-stacked text-lg text-orange-500"></i> รายการวัสดุสำนักงาน</h3>
+                                    <button type="button" onclick="window.addCheckoutRow()" class="playful-btn px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 flex items-center gap-1.5 transition-colors"><i class="fa-solid fa-plus text-orange-500"></i> เพิ่มแถว</button>
+                                </div>
+                                <datalist id="inventory-datalist"></datalist>
+                                <div id="checkout-items-container" class="space-y-4">
+                                    <div class="checkout-item-row bg-slate-50 p-5 rounded-2xl border border-slate-200 relative group transition-colors focus-within:border-orange-300">
+                                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                                            <div class="sm:col-span-6 relative">
+                                                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">ค้นหาวัสดุ (พิมพ์ชื่อ) <span class="text-rose-500">*</span></label>
+                                                <input list="inventory-datalist" required class="chk-item-name w-full px-4 py-3 bg-white border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold" oninput="window.onItemInputChanged(this)" placeholder="คลิกเพื่อพิมพ์ค้นหา...">
+                                                <div class="item-stock-hint text-[11px] mt-2 absolute -bottom-6 left-1"></div>
+                                            </div>
+                                            <div class="sm:col-span-3 mt-5 sm:mt-0">
+                                                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">จำนวน <span class="text-rose-500">*</span></label>
+                                                <input type="number" min="1" value="1" required class="chk-qty w-full px-4 py-3 bg-white border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm text-center font-extrabold text-slate-800">
+                                            </div>
+                                            <div class="sm:col-span-3 mt-5 sm:mt-0">
+                                                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">ประเภท <span class="text-rose-500">*</span></label>
+                                                <select required class="chk-type w-full px-4 py-3 bg-white border border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all rounded-xl text-sm font-bold text-slate-700">
+                                                    <option value="consume">เบิกขาด</option>
+                                                    <option value="borrow">ยืม (คืนภายหลัง)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-8 flex flex-col-reverse sm:flex-row justify-end gap-4 border-t border-slate-200 mt-10">
+                                <button type="button" onclick="window.resetCheckoutForm()" class="playful-btn px-6 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors border border-slate-200">ล้างข้อมูล</button>
+                                <button type="submit" class="playful-btn px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-extrabold text-sm shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-paper-plane"></i> ยืนยันส่งคำขออนุมัติ
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW: USERS -->
+                <div id="view-users" class="hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-users-gear"></i></div>
+                            <div><h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">ผู้ใช้งานระบบ</h2></div>
+                        </div>
+                        <button onclick="window.openAddUserModal()" class="playful-btn bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg shadow-slate-900/20 font-bold text-sm flex items-center gap-2 border border-slate-700">
+                            <i class="fa-solid fa-user-plus text-orange-400"></i> เพิ่มผู้เข้าใช้ระบบ
+                        </button>
+                    </div>
+
+                    <div class="playful-card overflow-hidden">
+                        <div class="p-5 border-b border-slate-100 bg-white flex flex-wrap gap-4 items-center justify-between">
+                            <div class="flex items-center gap-3 flex-1">
+                                <div class="relative min-w-[280px] flex-1 sm:flex-none">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="search-users" oninput="window.renderUsers()" placeholder="ค้นหาชื่อผู้ใช้งาน / รหัสพนักงาน..." class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none font-semibold focus:border-orange-500 focus:bg-white transition-colors">
+                                </div>
+                            </div>
+                            <div class="text-xs px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-extrabold uppercase tracking-wide border border-slate-200">ผู้ใช้ทั้งหมด <span id="total-users-count" class="text-orange-600 text-sm">0</span> คน</div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[12px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                        <th class="p-5 text-center w-16">No.</th>
+                                        <th class="p-5">รหัสพนักงาน</th>
+                                        <th class="p-5">ชื่อ - สกุล</th>
+                                        <th class="p-5">ตำแหน่ง</th>
+                                        <th class="p-5">ฝ่าย / แผนก</th>
+                                        <th class="p-5 text-center">สิทธิ์การใช้งาน</th>
+                                        <th class="p-5 text-center w-28">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-tbody" class="divide-y divide-slate-100 text-sm bg-white"></tbody>
+                            </table>
+                        </div>
+                        <div id="users-empty" class="hidden p-16 text-center">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl text-slate-300"><i class="fa-solid fa-user-slash"></i></div>
+                            <p class="text-base font-bold text-slate-500">ยังไม่มีข้อมูลผู้ใช้งานระบบ</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: APPROVALS -->
+                <div id="view-approvals" class="hidden space-y-6">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-clipboard-check"></i></div>
+                        <div><h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">จัดการคำขอ & อนุมัติ</h2></div>
+                    </div>
+                    
+                    <div class="playful-card overflow-hidden border-t-4 border-t-orange-500">
+                        <div class="overflow-x-auto p-2">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[12px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                        <th class="p-5 pl-6">วันที่ขอ</th>
+                                        <th class="p-5">ผู้ทำรายการ</th>
+                                        <th class="p-5">วัสดุที่ต้องการ</th>
+                                        <th class="p-5 text-center">จำนวน</th>
+                                        <th class="p-5 text-center">ประเภท</th>
+                                        <th class="p-5 text-center min-w-[280px]">การดำเนินการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="approvals-tbody" class="divide-y divide-slate-100 text-sm bg-white"></tbody>
+                            </table>
+                        </div>
+                        <div id="approvals-empty" class="hidden p-16 text-center">
+                            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl text-slate-300"><i class="fa-solid fa-mug-hot"></i></div>
+                            <p class="text-lg font-bold text-slate-500">ไม่มีรายการรออนุมัติ</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HISTORY SHARED HEADER TEMPLATE -->
+                <div id="history-header-template" class="hidden">
+                    <div id="history-toolbar" class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6 no-print w-full">
+                        <div class="flex items-center gap-4">
+                            <div id="history-icon" class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                            <div><h2 id="history-title" class="text-3xl font-extrabold text-slate-900 tracking-tight">ประวัติ</h2></div>
+                        </div>
+                        <div class="flex p-1.5 bg-white border border-slate-200 rounded-xl shadow-sm w-full sm:w-auto">
+                            <!-- Removed PDF and Print buttons as requested -->
+                            <button onclick="window.exportToExcel()" class="playful-btn flex-1 sm:flex-none text-emerald-600 hover:bg-emerald-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"><i class="fa-solid fa-file-excel"></i> <span class="hidden sm:inline">Excel</span></button>
+                        </div>
+                    </div>
+                    <div id="history-filters" class="p-5 border-b border-slate-200 bg-slate-50 flex flex-wrap gap-4 items-center justify-between rounded-t-2xl no-print">
+                        <div class="flex flex-wrap gap-3 items-center w-full">
+                            <div class="relative flex-1 sm:flex-none min-w-[200px]">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                                <input type="text" id="search-tx" oninput="window.renderActiveHistory()" placeholder="ค้นหาชื่อ, รหัส, แผนก, รายการ..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 focus:border-orange-500 rounded-lg text-sm outline-none font-semibold transition-colors shadow-sm">
+                            </div>
+                            
+                            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg pl-3 pr-2 py-1.5 focus-within:border-orange-500 transition-colors shadow-sm">
+                                <label class="text-[10px] font-extrabold text-slate-500 uppercase"><i class="fa-solid fa-user text-orange-400"></i> ผู้ทำรายการ</label>
+                                <select id="filter-employee" onchange="window.renderActiveHistory()" class="py-0.5 px-2 bg-transparent text-sm font-bold outline-none cursor-pointer text-slate-800">
+                                    <option value="all">ทุกคน</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg pl-3 pr-2 py-1.5 focus-within:border-orange-500 transition-colors shadow-sm">
+                                <label class="text-[10px] font-extrabold text-slate-500 uppercase"><i class="fa-regular fa-calendar text-orange-400"></i> ช่วงเวลา</label>
+                                <select id="filter-daterange" onchange="window.toggleCustomDateFilters(); window.renderActiveHistory()" class="py-0.5 px-2 bg-transparent text-sm font-bold outline-none cursor-pointer text-slate-800">
+                                    <option value="all">ทั้งหมด</option>
+                                    <option value="today">วันนี้</option>
+                                    <option value="yesterday">เมื่อวาน</option>
+                                    <option value="this_month">เดือนนี้</option>
+                                    <option value="custom">📅 กำหนดเอง...</option>
+                                </select>
+                                <div id="custom-date-container" class="hidden items-center gap-2 border-l border-slate-200 pl-3 ml-1">
+                                    <input type="date" id="filter-start-date" onchange="window.renderActiveHistory()" class="text-xs py-1 px-2 border border-slate-200 rounded-md font-bold bg-slate-50 text-slate-700 outline-none focus:border-orange-400">
+                                    <span class="text-xs font-bold text-slate-400">-</span>
+                                    <input type="date" id="filter-end-date" onchange="window.renderActiveHistory()" class="text-xs py-1 px-2 border border-slate-200 rounded-md font-bold bg-slate-50 text-slate-700 outline-none focus:border-orange-400">
+                                </div>
+                            </div>
+                            
+                            <div id="status-filter-container" class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg pl-3 pr-2 py-1.5 focus-within:border-orange-500 transition-colors shadow-sm">
+                                <label class="text-[10px] font-extrabold text-slate-500 uppercase">สถานะ</label>
+                                <select id="filter-status" onchange="window.renderActiveHistory()" class="py-0.5 px-2 bg-transparent text-sm font-bold outline-none cursor-pointer text-slate-800">
+                                    <option value="all">ทุกสถานะ</option>
+                                    <option value="pending">รอคืน (ยืม)</option>
+                                    <option value="returned">คืนแล้ว</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW: CONSUMED -->
+                <div id="view-consumed" class="hidden space-y-6">
+                    <div id="consumed-header-anchor"></div>
+                    <div class="playful-card printable-section overflow-hidden rounded-b-2xl border-t-0" id="consumed-printable-area">
+                        <div id="consumed-filters-anchor"></div>
+                        <div class="overflow-x-auto bg-white">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-white text-[12px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                        <th class="p-5 pl-6">วันที่</th><th class="p-5">ผู้เบิก</th><th class="p-5">รายการวัสดุ</th>
+                                        <th class="p-5 text-center">จำนวน</th><th class="p-5 text-center">สถานะ</th><th class="p-5 text-center w-28 no-print">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="consumed-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                        <div id="consumed-empty" class="hidden p-16 text-center bg-white"><p class="text-base font-bold text-slate-400">ไม่พบประวัติการเบิกขาด</p></div>
+                    </div>
+                </div>
+
+                <!-- VIEW: BORROW -->
+                <div id="view-borrow" class="hidden space-y-6">
+                    <div id="borrow-header-anchor"></div>
+                    <div class="playful-card printable-section overflow-hidden rounded-b-2xl border-t-0" id="borrow-printable-area">
+                        <div id="borrow-filters-anchor"></div>
+                        <div class="overflow-x-auto bg-white">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-white text-[12px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                        <th class="p-5 pl-6">วันที่ยืม</th><th class="p-5">ผู้ยืม</th><th class="p-5">รายการวัสดุ</th>
+                                        <th class="p-5 text-center">จำนวน</th><th class="p-5 text-center">สถานะ</th><th class="p-5 text-center w-32 no-print">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="borrow-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                        <div id="borrow-empty" class="hidden p-16 text-center bg-white"><p class="text-base font-bold text-slate-400">ไม่พบประวัติการยืม-คืน</p></div>
+                    </div>
+                </div>
+
+                <!-- VIEW: TRASH -->
+                <div id="view-trash" class="hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-800 shadow-sm border border-slate-200 text-xl"><i class="fa-solid fa-trash-can"></i></div>
+                            <div><h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">ถังขยะ (Recycle Bin)</h2></div>
+                        </div>
+                        <button onclick="window.emptyTrash()" class="playful-btn bg-white border border-rose-200 text-rose-600 hover:bg-rose-500 hover:text-white px-5 py-2.5 rounded-xl shadow-sm font-bold text-sm flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-fire"></i> ล้างถังขยะทั้งหมดถาวร
+                        </button>
+                    </div>
+
+                    <div class="playful-card overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-rose-50 flex items-center text-sm font-bold text-rose-800">
+                            <i class="fa-solid fa-triangle-exclamation mr-3 text-rose-500 text-lg"></i> ข้อมูลที่ถูกลบจะถูกนำมาเก็บไว้ที่นี่ สามารถกู้คืนได้ หรือล้างถังขยะเพื่อลบทิ้งถาวร
+                        </div>
+                        <div class="overflow-x-auto bg-white">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-white text-[12px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                        <th class="p-5 w-32 pl-6">วันที่ลบ</th>
+                                        <th class="p-5 text-center w-36">ประเภทข้อมูล</th>
+                                        <th class="p-5">รายละเอียด</th>
+                                        <th class="p-5 text-center w-40">การจัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trash-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                        <div id="trash-empty" class="hidden p-16 text-center bg-white">
+                            <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl text-slate-300"><i class="fa-solid fa-leaf"></i></div>
+                            <p class="text-base font-bold text-slate-500">ถังขยะว่างเปล่า เยี่ยมมาก!</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: QR CODE FOR EMPLOYEES -->
+    <div id="qr-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] hidden flex justify-center items-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden transform scale-95 transition-transform duration-300 text-center p-8 border border-white/20 relative">
+            <div class="flex justify-between items-center mb-4 relative z-10">
+                <h3 class="font-extrabold text-xl text-slate-900"><i class="fa-solid fa-mobile-screen mr-2 text-orange-500"></i> แสกนทำรายการ</h3>
+                <button onclick="window.closeModal('qr-modal')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-[13px] text-slate-500 mb-6 font-medium relative z-10">บันทึกหรือปริ้น QR นี้ให้พนักงานแสกนผ่านมือถือเพื่อเข้าสู่ระบบทำรายการด้วยตนเอง</p>
+            
+            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 inline-block mb-6 shadow-inner relative z-10">
+                <div id="qrcode-container" class="flex justify-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm"></div>
+            </div>
+            
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm relative z-10">
+                <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 text-left">Direct Link</p>
+                <div class="flex items-center gap-2">
+                    <div class="text-[11px] text-blue-600 font-bold break-all flex-1 text-left line-clamp-2" id="qr-url-text"></div>
+                    <button onclick="window.copyQrLink()" class="w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="คัดลอกลิงก์"><i class="fa-regular fa-copy"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD/EDIT ITEM -->
+    <div id="item-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] hidden flex justify-center items-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform scale-95 transition-transform duration-300">
+            <div class="bg-slate-50 px-8 py-5 flex justify-between items-center border-b border-slate-200">
+                <h3 id="item-modal-title" class="font-extrabold text-xl text-slate-900 flex items-center gap-2"><i class="fa-solid fa-box text-orange-500"></i> จัดการวัสดุสำนักงาน</h3>
+                <button onclick="window.closeModal('item-modal')" class="w-8 h-8 rounded-lg bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 font-bold shadow-sm border border-slate-200 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="item-edit-form" onsubmit="window.handleItemFormSubmit(event)" class="p-8">
+                <input type="hidden" id="edit-item-index" value="">
+                <div class="space-y-5">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div class="col-span-2"><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ชื่อรายการ <span class="text-rose-500">*</span></label><input type="text" id="modal-item-name" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none"></div>
+                        <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ไซส์ (ถ้ามี)</label><input type="text" id="modal-item-size" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none" placeholder="เช่น S, M, L"></div>
+                        <div>
+                            <label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">หมวดหมู่ <span class="text-rose-500">*</span></label>
+                            <select id="modal-item-category" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none text-slate-700">
+                                <option value="เครื่องแบบพนักงาน">เสื้อผ้า/เครื่องแบบ</option><option value="อุปกรณ์">อุปกรณ์ทำงาน</option><option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ประเภทการเบิก <span class="text-rose-500">*</span></label>
+                            <select id="modal-item-type" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none text-slate-700">
+                                <option value="consume">เบิกขาด</option><option value="borrow">ยืม (คืนภายหลัง)</option>
+                            </select>
+                        </div>
+                        <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ราคาประเมิน (฿) <span class="text-rose-500">*</span></label><input type="number" id="modal-item-price" min="0" step="0.01" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none"></div>
+                        <div class="col-span-2"><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">จำนวนในคลัง (ตั้งต้น) <span class="text-rose-500">*</span></label><input type="number" id="modal-item-qty" min="0" required class="w-full px-4 py-2.5 bg-white border-2 border-slate-200 focus:border-orange-500 rounded-xl text-sm font-extrabold text-slate-800 transition-all outline-none"></div>
+                    </div>
+                </div>
+                <div class="pt-8 flex justify-end gap-3 mt-8 border-t border-slate-100">
+                    <button type="button" onclick="window.closeModal('item-modal')" class="playful-btn px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold text-sm transition-colors">ยกเลิก</button>
+                    <button type="submit" class="playful-btn px-8 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2"><i class="fa-solid fa-floppy-disk text-orange-500"></i> บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD/EDIT USER (With Profile Picture Upload) -->
+    <div id="user-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] hidden flex justify-center items-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto">
+            <div class="bg-slate-50 px-8 py-5 flex justify-between items-center border-b border-slate-200">
+                <h3 id="user-modal-title" class="font-extrabold text-xl text-slate-900 flex items-center gap-2"><i class="fa-solid fa-user-gear text-orange-500"></i> จัดการผู้ใช้</h3>
+                <button onclick="window.closeModal('user-modal')" class="w-8 h-8 rounded-lg bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 font-bold shadow-sm border border-slate-200 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="user-edit-form" onsubmit="window.handleUserFormSubmit(event)" class="p-8">
+                <input type="hidden" id="edit-user-id" value="">
+                
+                <!-- Profile Picture Upload -->
+                <div class="mb-8 flex flex-col items-center justify-center">
+                    <div class="relative group cursor-pointer">
+                        <div id="profile-preview-container" class="w-24 h-24 rounded-full bg-slate-100 border-4 border-white shadow-md overflow-hidden flex items-center justify-center transition-transform group-hover:scale-105">
+                            <i class="fa-solid fa-user text-4xl text-slate-300"></i>
+                        </div>
+                        <div class="absolute inset-0 bg-slate-900/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fa-solid fa-camera text-white text-xl"></i>
+                        </div>
+                        <input type="file" id="modal-user-image" accept="image/jpeg, image/png" onchange="window.handleImageUpload(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        <input type="hidden" id="modal-user-profile-data" value="">
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-400 mt-3 uppercase tracking-wider">คลิกเพื่ออัปโหลดรูปภาพ</span>
+                </div>
+
+                <div class="space-y-5">
+                    <div class="grid grid-cols-2 gap-5">
+                        <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">รหัสพนักงาน <span class="text-rose-500">*</span></label><input type="text" id="modal-user-empid" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none" placeholder="EMP-001"></div>
+                        <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">สิทธิ์การใช้งาน <span class="text-rose-500">*</span></label>
+                            <select id="modal-user-role" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none text-slate-700">
+                                <option value="พนักงานทั่วไป">พนักงานทั่วไป</option>
+                                <option value="Admin">ผู้ดูแลระบบ (Admin)</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2"><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ชื่อ - สกุล <span class="text-rose-500">*</span></label><input type="text" id="modal-user-name" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none" placeholder="ชื่อ นามสกุล"></div>
+                        <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ตำแหน่ง</label><input type="text" id="modal-user-pos" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none" placeholder="ตำแหน่ง"></div>
+                        <div><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">ฝ่าย / แผนก</label><input type="text" id="modal-user-dept" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none" placeholder="แผนก"></div>
+                        <div class="col-span-2"><label class="block text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-2">รหัสผ่าน <span class="text-[10px] text-slate-400 font-normal normal-case ml-1">(แอดมินใช้สำหรับตั้งค่าให้ผู้ใช้ล็อกอิน)</span></label><input type="text" id="modal-user-password" class="w-full px-4 py-2.5 bg-white border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 rounded-xl text-sm font-bold transition-all outline-none" placeholder="ตั้งรหัสผ่าน"></div>
+                    </div>
+                </div>
+                <div class="pt-8 flex justify-end gap-3 mt-8 border-t border-slate-100">
+                    <button type="button" onclick="window.closeModal('user-modal')" class="playful-btn px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-bold text-sm transition-colors">ยกเลิก</button>
+                    <button type="submit" class="playful-btn px-8 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center gap-2"><i class="fa-solid fa-floppy-disk text-orange-500"></i> บันทึกผู้ใช้</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: TX EDIT & PRINT -->
+    <div id="tx-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] hidden flex justify-center items-center p-4 opacity-0 transition-opacity duration-300 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full transform scale-95 transition-transform duration-300 my-auto">
+            <div class="bg-slate-50 px-8 py-5 flex justify-between items-center border-b border-slate-200 rounded-t-3xl">
+                <h3 class="font-extrabold text-xl text-slate-900 flex items-center gap-2"><i class="fa-solid fa-file-invoice text-orange-500"></i> ข้อมูลเอกสารเบิกจ่าย</h3>
+                <button onclick="window.closeModal('tx-modal')" class="w-8 h-8 rounded-lg bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-500 font-bold shadow-sm border border-slate-200 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="tx-edit-form" onsubmit="window.handleTxEditSubmit(event)" class="p-8">
+                <input type="hidden" id="modal-tx-id-edit" value="">
+                
+                <div class="mb-6 p-5 bg-slate-50 rounded-2xl border border-slate-200 grid grid-cols-2 gap-y-4 gap-x-2 text-sm shadow-sm">
+                    <div class="col-span-2"><span class="text-slate-500 block text-[10px] font-extrabold uppercase tracking-widest mb-1">รายการวัสดุ</span><strong id="info-tx-item" class="text-slate-900 text-base"></strong></div>
+                    <div><span class="text-slate-500 block text-[10px] font-extrabold uppercase tracking-widest mb-1">จำนวน</span><strong id="info-tx-qty" class="text-slate-800 bg-white border border-slate-200 px-3 py-1 rounded-lg text-sm shadow-sm"></strong></div>
+                    <div><span class="text-slate-500 block text-[10px] font-extrabold uppercase tracking-widest mb-1">สถานะ</span><strong id="info-tx-status"></strong></div>
+                    <div class="col-span-2 pt-3 mt-1 border-t border-slate-200 flex justify-between items-center"><span class="text-slate-500 text-[10px] font-extrabold uppercase tracking-widest">วันที่ทำรายการ</span><strong id="info-tx-date" class="text-slate-800 text-sm"></strong></div>
+                </div>
+                
+                <h4 class="text-xs font-extrabold text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-wide"><i class="fa-regular fa-id-badge text-orange-500"></i> แก้ไขข้อมูลผู้ทำรายการ</h4>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div><label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">รหัสพนักงาน <span class="text-rose-500">*</span></label><input type="text" id="edit-tx-emp-id" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-lg text-sm font-bold transition-colors outline-none"></div>
+                        <div><label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">ฝ่าย / แผนก <span class="text-rose-500">*</span></label><input type="text" id="edit-tx-department" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-lg text-sm font-bold transition-colors outline-none"></div>
+                        <div class="sm:col-span-2"><label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">ชื่อ - สกุล <span class="text-rose-500">*</span></label><input type="text" id="edit-tx-emp-name" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-lg text-sm font-bold transition-colors outline-none"></div>
+                    </div>
+                </div>
+                <div class="pt-6 flex justify-between gap-3 border-t border-slate-100 mt-8 flex-wrap">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="window.printTxDocument()" class="playful-btn px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg font-bold text-sm transition-colors border border-slate-200 flex items-center gap-2 shadow-sm"><i class="fa-solid fa-print text-slate-400"></i> พิมพ์</button>
+                        <button type="button" onclick="window.downloadTxPdf()" class="playful-btn px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold text-sm transition-colors border border-rose-200 flex items-center gap-2 shadow-sm"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    </div>
+                    <button type="submit" class="playful-btn px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-sm shadow-md transition-all flex items-center gap-2"><i class="fa-solid fa-floppy-disk text-orange-500"></i> บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PRINT SLIP TEMPLATE (Hidden from normal view) -->
+    <div id="slip-printable-area" class="hidden p-10 max-w-4xl mx-auto bg-white text-slate-900 min-h-screen font-sans border border-slate-200 shadow-2xl">
+        <div class="text-center mb-8 pb-6 border-b-2 border-slate-800">
+            <h2 class="text-2xl font-bold mb-2">ใบเบิกวัสดุสำนักงาน และเครื่องแบบพนักงาน</h2>
+        </div>
+        <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-[14px] mb-8 px-4">
+            <div><span class="font-bold inline-block w-24">ชื่อ-สกุล :</span> <span id="slip-emp-name" class="border-b border-dashed border-slate-500 pb-0.5 px-2 font-medium"></span></div>
+            <div><span class="font-bold inline-block w-24">ฝ่าย / แผนก :</span> <span id="slip-department" class="border-b border-dashed border-slate-500 pb-0.5 px-2 font-medium"></span></div>
+            <div><span class="font-bold inline-block w-24">รหัสพนักงาน :</span> <span id="slip-emp-id" class="border-b border-dashed border-slate-500 pb-0.5 px-2 font-medium"></span></div>
+            <div><span class="font-bold inline-block w-24">ตำแหน่ง :</span> <span id="slip-position" class="border-b border-dashed border-slate-500 pb-0.5 px-2 font-medium"></span></div>
+        </div>
+        <p class="text-[14px] font-bold mb-4 px-4">มีความประสงค์ขอเบิกวัสดุอุปกรณ์ ดังต่อไปนี้</p>
+        <table class="w-full border-collapse border-2 border-slate-800 text-[13px] mb-8">
+            <thead>
+                <tr class="bg-slate-100">
+                    <th class="p-3 border border-slate-800 text-center w-12 font-bold">ลำดับ</th>
+                    <th class="p-3 border border-slate-800 text-center font-bold">รายการ</th>
+                    <th class="p-3 border border-slate-800 text-center w-24 font-bold">จำนวน</th>
+                    <th class="p-3 border border-slate-800 text-center w-28 font-bold">ราคา/หน่วย</th>
+                    <th class="p-3 border border-slate-800 text-center w-16 font-bold">เบิก</th>
+                    <th class="p-3 border border-slate-800 text-center w-16 font-bold">คืน</th>
+                    <th class="p-3 border border-slate-800 text-center w-32 font-bold">หมายเหตุ</th>
+                </tr>
+            </thead>
+            <tbody id="slip-tbody"></tbody>
+        </table>
+        <p class="text-[13px] mb-12 leading-relaxed px-4 indent-12 text-justify">
+            ข้าพเจ้าขอรับรองว่า จะดูแลรักษาอุปกรณ์ และเครื่องแบบพนักงานเป็นอย่างดี หากเกิดความเสียหายใดๆ หรือเกิดการสูญหายข้าพเจ้าขอรับผิดชอบทั้งหมด
+        </p>
+        <div class="grid grid-cols-2 gap-y-16 gap-x-12 text-center text-[13px] px-8">
+            <div><p>ลงชื่อ.........................................................ผู้เบิก</p><p class="mt-4">( <span id="slip-sign-name" class="inline-block w-40 text-center font-bold"></span> )</p><p class="mt-4">วันที่ ......./......./.......</p></div>
+            <div><p>ลงชื่อ.........................................................ผู้อนุมัติ</p><p class="mt-4">(.........................................................)</p><p class="mt-4">วันที่ ......./......./.......</p></div>
+            <div><p>ลงชื่อ.........................................................ผู้คืน</p><p class="mt-4">(.........................................................)</p><p class="mt-4">วันที่ ......./......./.......</p></div>
+            <div><p>ลงชื่อ.........................................................ผู้รับคืน</p><p class="mt-4">(.........................................................)</p><p class="mt-4">วันที่ ......./......./.......</p></div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // State Management
+        let inventory = [];
+        let transactions = [];
+        let systemUsers = [];
+        let trashItems = [];
+        
+        let currentTab = 'dashboard';
+        let tabHistory = [];
+        let isLoggedIn = false;
+        let itemChartInstance = null; 
+        let deptChartInstance = null;
+
+        window.updatePendingBadge = function() {
+            const count = transactions.filter(t => t.status === 'pending_approval').length;
+            const badge = document.getElementById('badge-pending');
+            if (badge) { 
+                if (count > 0) { badge.innerText = count; badge.classList.remove('hidden'); } 
+                else { badge.classList.add('hidden'); }
+            }
+        };
+
+        window.escapeHTML = function(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[&<>'"]/g, function(match) {
+                const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+                return escape[match];
+            });
+        };
+
+        window.showLoader = function(msg = 'กำลังโหลดข้อมูล...') {
+            const loaderText = document.getElementById('loader-text');
+            if(loaderText) loaderText.innerText = msg;
+            document.getElementById('global-loader').style.display = 'flex';
+        };
+        window.hideLoader = function() {
+            document.getElementById('global-loader').style.display = 'none';
+        };
+
+        // --- Auth Logic ---
+        window.handleLogin = function(e) {
+            e.preventDefault();
+            const user = document.getElementById('login-username').value.trim();
+            const pass = document.getElementById('login-password').value.trim();
+
+            const foundUser = systemUsers.find(u => (u.empId === user || u.name === user) && u.password === pass);
+            const isSuperAdmin = (user === 'Emmy' && pass === '170847');
+
+            if (isSuperAdmin || foundUser) {
+                const role = isSuperAdmin ? 'Admin' : foundUser.role;
+                const displayName = isSuperAdmin ? 'Emmy' : foundUser.name;
+
+                if (role.includes('Admin') || isSuperAdmin) {
+                    Swal.fire({
+                        icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', text: `ยินดีต้อนรับ ผู้ดูแลระบบ ${displayName}`, timer: 1500, showConfirmButton: false, confirmButtonColor: '#f97316'
+                    }).then(() => proceedLogin(false));
+                } else {
+                    Swal.fire({ icon: 'error', title: 'ไม่มีสิทธิ์เข้าถึง', text: 'บัญชีนี้ไม่มีสิทธิ์การใช้งานส่วนผู้ดูแลระบบ กรุณาเข้าสู่ระบบในโหมดพนักงาน', confirmButtonColor: '#0f172a' });
+                }
+            } else {
+                Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบล้มเหลว', text: 'Username หรือ Password ไม่ถูกต้อง', confirmButtonColor: '#0f172a' });
+            }
+        };
+
+        function proceedLogin(isEmpMode) {
+            isLoggedIn = true; window.isEmployeeMode = isEmpMode;
+            document.getElementById('login-overlay').style.opacity = '0';
+            setTimeout(() => { 
+                document.getElementById('login-overlay').style.display = 'none'; 
+                applyRoleMode(); 
+                window.switchTab(isEmpMode ? 'checkout' : 'dashboard'); 
+            }, 500);
+        }
+
+        window.continueAsEmployee = function() {
+            proceedLogin(true);
+            Swal.fire({ icon: 'info', title: 'โหมดพนักงาน', text: 'คุณสามารถทำรายการเบิก-ยืมได้เท่านั้น', timer: 2000, showConfirmButton: false });
+        };
+
+        window.logout = function() {
+            isLoggedIn = false; window.isEmployeeMode = false;
+            const appContainer = document.getElementById('main-app-container');
+            appContainer.style.opacity = '0';
+            setTimeout(() => {
+                appContainer.style.display = 'none';
+                const loginOverlay = document.getElementById('login-overlay');
+                loginOverlay.style.display = 'flex'; void loginOverlay.offsetWidth; loginOverlay.style.opacity = '1';
+                document.getElementById('login-username').value = ''; document.getElementById('login-password').value = '';
+                tabHistory = [];
+            }, 300);
+        };
+
+        window.toggleLoginPassword = function() {
+            const passInput = document.getElementById('login-password');
+            const eyeIcon = document.getElementById('eye-icon');
+            if (passInput.type === 'password') { passInput.type = 'text'; eyeIcon.classList.remove('fa-eye-slash'); eyeIcon.classList.add('fa-eye', 'text-orange-500'); } 
+            else { passInput.type = 'password'; eyeIcon.classList.remove('fa-eye', 'text-orange-500'); eyeIcon.classList.add('fa-eye-slash'); }
+        };
+
+        function applyRoleMode() {
+            const appContainer = document.getElementById('main-app-container');
+            appContainer.style.display = 'flex'; setTimeout(() => appContainer.style.opacity = '1', 50);
+            const sidebar = document.getElementById('main-sidebar');
+            const backBtnContainer = document.getElementById('back-btn-container');
+            const btnEmpLogout = document.getElementById('btn-emp-logout');
+            const btnShowQr = document.getElementById('btn-show-qr');
+
+            if (window.isEmployeeMode) {
+                if(sidebar) sidebar.style.display = 'none';
+                if(backBtnContainer) backBtnContainer.style.display = 'none';
+                if(btnEmpLogout) btnEmpLogout.classList.remove('hidden');
+                if(btnShowQr) btnShowQr.classList.add('hidden');
+                tabHistory = [];
+            } else {
+                if(sidebar) sidebar.style.display = 'flex';
+                if(btnEmpLogout) btnEmpLogout.classList.add('hidden');
+                if(btnShowQr) btnShowQr.classList.remove('hidden');
+            }
+        }
+
+        // --- Data Fetching & Sync ---
+        window.fetchDataFromServer = function(isRefresh = false, background = false) {
+            if(!background) window.showLoader(isRefresh ? 'กำลังซิงค์ข้อมูลล่าสุด...' : 'กำลังเชื่อมต่อฐานข้อมูล...');
+            
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                let fetchTimer = null;
+                if(!background) {
+                    fetchTimer = setTimeout(() => {
+                        window.hideLoader();
+                        Swal.fire({ icon: 'warning', title: 'ใช้เวลาโหลดนานผิดปกติ', text: 'แนะนำให้รีเฟรชหน้าเว็บ หรือกดรอต่อไป', confirmButtonText: 'รีเฟรชหน้าเว็บ', confirmButtonColor: '#f97316', showCancelButton: true, cancelButtonText: 'รอต่อไป'
+                        }).then((res) => { if (res.isConfirmed) location.reload(); else window.showLoader('กำลังพยายามเชื่อมต่อต่อ...'); });
+                    }, 15000);
+                }
+
+                google.script.run.withSuccessHandler(function(res) {
+                    if(fetchTimer) clearTimeout(fetchTimer);
+                    if(!background) window.hideLoader();
+                    try {
+                        if (res && res.error) { if(!background) Swal.fire({icon: 'error', title: 'เกิดข้อผิดพลาดบนเซิร์ฟเวอร์', text: res.error, confirmButtonColor: '#0f172a'}); return; }
+                        const data = res.data || res;
+                        if (!data || !data.inventory) return;
+
+                        inventory = data.inventory || []; transactions = data.transactions || [];
+                        systemUsers = data.users || []; trashItems = data.trash || [];
+                        
+                        window.updatePendingBadge();
+                        if(isLoggedIn && !background) window.switchTab(currentTab); 
+                        if(isRefresh && !background) Swal.fire({icon: 'success', title: 'ซิงค์ข้อมูลสำเร็จ', timer: 1000, showConfirmButton: false});
+                    } catch(e) { console.error("Data Error:", e); if(!background) Swal.fire({icon: 'error', text: e.message, confirmButtonColor: '#0f172a'}); }
+                }).withFailureHandler(function(error) {
+                    if(fetchTimer) clearTimeout(fetchTimer); 
+                    if(!background) { window.hideLoader(); Swal.fire({icon: 'error', title: 'ไม่สามารถโหลดข้อมูลได้', text: 'ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต', confirmButtonColor: '#0f172a'}); }
+                }).getAppData();
+            } else {
+                // MOCK DATA FOR LOCAL PREVIEW
+                setTimeout(() => {
+                    inventory = [
+                        { id: 'itm-1', name: 'เสื้อเชิ้ตบริษัท', size: 'M', category: 'เครื่องแบบพนักงาน', itemType: 'consume', price: 350, qty: 50 },
+                        { id: 'itm-2', name: 'เมาส์ไร้สาย', size: '', category: 'อุปกรณ์', itemType: 'borrow', price: 500, qty: 5 },
+                        { id: 'itm-3', name: 'กระดาษ A4 (รีม)', size: '', category: 'อุปกรณ์', itemType: 'consume', price: 120, qty: 100 }
+                    ];
+                    transactions = [
+                        { id: 'tx-1', billId: 'B-1', empId: 'EMP-002', empName: 'สมปอง ยืนยง', department: 'ซ่อมบำรุง', empType: 'พนักงานประจำ 1 ปี', date: '2026-10-10', itemName: 'เสื้อเชิ้ตบริษัท', qty: 2, type: 'consume', status: 'pending_approval' },
+                        { id: 'tx-2', billId: 'B-2', empId: 'EMP-003', empName: 'มานี มีนา', department: 'IT', empType: 'พนักงานเข้าใหม่น้อยกว่า 1 ปี', date: '2026-10-09', itemName: 'เมาส์ไร้สาย', qty: 1, type: 'borrow', status: 'pending' },
+                        { id: 'tx-3', billId: 'B-3', empId: 'EMP-004', empName: 'ชูใจ ใจดี', department: 'บัญชี', empType: 'นักศึกษาฝึกงาน', date: '2026-10-01', itemName: 'กระดาษ A4 (รีม)', qty: 1, type: 'consume', status: 'consumed' }
+                    ];
+                    systemUsers = [
+                        { id: 'usr-1', empId: 'EMP-001', name: 'Emmy (Admin)', position: 'Manager', department: 'IT', role: 'Admin', password: '1', profileImage: '' }
+                    ];
+                    
+                    if(!background) window.hideLoader(); 
+                    window.updatePendingBadge();
+                    if(isLoggedIn && !background) window.switchTab(currentTab);
+                }, 800);
+            }
+        };
+
+        window.backgroundSync = function() {
+            if (typeof google !== 'undefined' && google.script && google.script.run && isLoggedIn) {
+                google.script.run.withSuccessHandler(function(res) {
+                    try {
+                        const data = res.data || res;
+                        if (!data || data.error) return; 
+                        inventory = data.inventory || inventory; transactions = data.transactions || transactions;
+                        systemUsers = data.users || systemUsers; trashItems = data.trash || trashItems;
+                        window.updatePendingBadge();
+                        
+                        const activeEl = document.activeElement;
+                        const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+                        const isModalOpen = (!document.getElementById('item-modal').classList.contains('hidden') || 
+                                             !document.getElementById('user-modal').classList.contains('hidden') || 
+                                             !document.getElementById('tx-modal').classList.contains('hidden'));
+                        
+                        if(!isTyping && !isModalOpen && isLoggedIn) {
+                            if(currentTab === 'dashboard') window.renderDashboard();
+                            if(currentTab === 'inventory') window.renderInventory();
+                            if(currentTab === 'users') window.renderUsers();
+                            if(currentTab === 'approvals') window.renderApprovals();
+                            if(currentTab === 'consumed' || currentTab === 'borrow') window.renderActiveHistory();
+                            if(currentTab === 'trash') window.renderTrash();
+                        }
+                    } catch(e) { console.error("Auto Sync Error:", e); }
+                }).getAppData();
+            }
+        };
+
+        window.executeWithSyncAndSave = function(updateLogic, successMsg = 'บันทึกสำเร็จ', callback = null) {
+            window.showLoader('กำลังบันทึกข้อมูล...');
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(function(res) {
+                    if (res && !res.error && res.data) {
+                        const sData = res.data;
+                        inventory = sData.inventory || inventory; transactions = sData.transactions || transactions;
+                        systemUsers = sData.users || systemUsers; trashItems = sData.trash || trashItems;
+                    }
+                    try { updateLogic(); } catch (err) { window.hideLoader(); Swal.fire({icon: 'error', title: 'ข้อผิดพลาด', text: err.message, confirmButtonColor: '#0f172a'}); return; }
+                    window.performSaveAction(successMsg, callback);
+                }).withFailureHandler(function() {
+                    try { updateLogic(); } catch (err) { window.hideLoader(); Swal.fire({icon: 'error', text: err.message, confirmButtonColor: '#0f172a'}); return; }
+                    window.performSaveAction(successMsg, callback);
+                }).getAppData();
+            } else {
+                try { updateLogic(); } catch (err) { window.hideLoader(); Swal.fire({icon: 'error', text: err.message, confirmButtonColor: '#0f172a'}); return; }
+                window.performSaveAction(successMsg, callback);
+            }
+        };
+
+        window.performSaveAction = function(successMsg, callback) {
+             const payload = { inventory, transactions, users: systemUsers, trash: trashItems };
+             if (typeof google !== 'undefined' && google.script && google.script.run) {
+                 google.script.run.withSuccessHandler(function(res) {
+                     window.hideLoader();
+                     if(res && res.success) { window.updatePendingBadge(); if(successMsg) Swal.fire({ icon: 'success', title: successMsg, timer: 1500, showConfirmButton: false }); if(callback) callback(); } 
+                     else { Swal.fire({icon: 'error', title: 'ไม่สามารถบันทึกได้', text: res ? res.error : 'Unknown', confirmButtonColor: '#0f172a'}); }
+                 }).withFailureHandler(function(err) { window.hideLoader(); Swal.fire({icon: 'error', title: 'การเชื่อมต่อขัดข้อง', text: err.message, confirmButtonColor: '#0f172a'}); }).saveAppData(payload);
+             } else {
+                 window.hideLoader(); window.updatePendingBadge(); if(successMsg) Swal.fire({ icon: 'success', title: successMsg + ' (Local)', timer: 1500, showConfirmButton: false }); if(callback) callback();
+             }
+        };
+
+        // --- Navigation ---
+        window.switchTab = function(tabId, isBack = false) {
+            if (!isLoggedIn) return;
+            if (window.isEmployeeMode && tabId !== 'checkout') { Swal.fire({icon:'warning', title:'ไม่มีสิทธิ์เข้าถึง', confirmButtonColor: '#f97316'}); return; }
+            if (currentTab === tabId) return;
+
+            if (!isBack && currentTab && currentTab !== 'checkout' && !window.isEmployeeMode) { tabHistory.push(currentTab); }
+            currentTab = tabId;
+
+            const views = ['dashboard', 'inventory', 'checkout', 'users', 'approvals', 'consumed', 'borrow', 'trash'];
+            views.forEach(v => { const el = document.getElementById(`view-${v}`); if(el) { el.classList.add('hidden'); el.classList.remove('animate-fade-slide'); } });
+            
+            const targetView = document.getElementById(`view-${tabId}`);
+            if(targetView) { targetView.classList.remove('hidden'); void targetView.offsetWidth; targetView.classList.add('animate-fade-slide'); }
+
+            views.forEach(t => {
+                const dBtn = document.getElementById(`sidebar-tab-${t}`);
+                if (dBtn) dBtn.className = (t === tabId) ? "sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-extrabold bg-orange-500 text-white shadow-md shadow-orange-500/20 transition-all text-left relative" : "sidebar-btn group w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-left relative";
+            });
+
+            if (tabId === 'consumed' || tabId === 'borrow') {
+                const hToolbar = document.getElementById('history-toolbar'); const hFilters = document.getElementById('history-filters');
+                if(hToolbar) document.getElementById(`${tabId}-header-anchor`).appendChild(hToolbar);
+                if(hFilters) document.getElementById(`${tabId}-filters-anchor`).appendChild(hFilters);
+                document.getElementById('history-title').innerText = tabId === 'consumed' ? 'ประวัติเบิก (เบิกขาด)' : 'รายการยืม - คืน';
+                const sFilterCont = document.getElementById('status-filter-container');
+                if(sFilterCont) { if (tabId === 'consumed') sFilterCont.classList.add('hidden'); else sFilterCont.classList.remove('hidden'); }
+                window.populateEmployeeFilterDropdown();
+            }
+
+            if(tabId === 'dashboard') window.renderDashboard();
+            if(tabId === 'checkout') window.populateCheckoutDropdown();
+            if(tabId === 'inventory') window.renderInventory();
+            if(tabId === 'users') window.renderUsers();
+            if(tabId === 'trash') window.renderTrash();
+            if(tabId === 'approvals') window.renderApprovals();
+            if(tabId === 'consumed' || tabId === 'borrow') window.renderActiveHistory();
+            
+            const mainContainer = document.getElementById('main-content');
+            if(mainContainer) mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+
+            const backBtnContainer = document.getElementById('back-btn-container');
+            if (backBtnContainer) {
+                if (tabHistory.length > 0 && !window.isEmployeeMode) backBtnContainer.classList.remove('hidden');
+                else backBtnContainer.classList.add('hidden');
+            }
+        };
+
+        window.goBack = function() {
+            if (tabHistory.length > 0 && !window.isEmployeeMode) { const prevTab = tabHistory.pop(); window.switchTab(prevTab, true); }
+        };
+
+        // --- Render Functions ---
+        window.renderDashboard = function() {
+            document.getElementById('stat-total-items').innerText = inventory.reduce((sum, i) => sum + Number(i.qty || 0), 0).toLocaleString();
+            document.getElementById('stat-total-tx').innerText = transactions.filter(t => t.status === 'pending_approval').length.toLocaleString();
+            document.getElementById('stat-pending-tx').innerText = transactions.filter(t => t.status === 'pending').length.toLocaleString();
+            document.getElementById('stat-consumed-tx').innerText = transactions.filter(t => t.status === 'consumed').length.toLocaleString();
+
+            const itemCounts = {}; const deptCounts = {};
+            transactions.filter(t => t.status !== 'pending_approval' && t.status !== 'rejected').forEach(t => {
+                const qty = Number(t.qty || 0);
+                itemCounts[t.itemName] = (itemCounts[t.itemName] || 0) + qty;
+                deptCounts[t.department] = (deptCounts[t.department] || 0) + 1;
+            });
+
+            const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const itemChartCtx = document.getElementById('itemChart');
+            if(itemChartCtx) {
+                if(itemChartInstance) itemChartInstance.destroy();
+                itemChartInstance = new Chart(itemChartCtx.getContext('2d'), { type: 'bar', data: { labels: sortedItems.map(i => window.escapeHTML(i[0])), datasets: [{ data: sortedItems.map(i => i[1]), backgroundColor: '#f97316', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#e2e8f0' } }, x: { grid: { display: false } } } } });
+            }
+
+            const deptChartCtx = document.getElementById('deptChart');
+            if(deptChartCtx) {
+                if(deptChartInstance) deptChartInstance.destroy();
+                deptChartInstance = new Chart(deptChartCtx.getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(deptCounts).map(d => window.escapeHTML(d)), datasets: [{ data: Object.values(deptCounts), backgroundColor: ['#0f172a', '#f97316', '#334155', '#ea580c', '#64748b', '#fb923c'], borderWidth: 2, borderColor: '#ffffff' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right' } } } });
+            }
+        };
+
+        window.renderInventory = function() {
+            const tbody = document.getElementById('inventory-tbody'); if(!tbody) return; tbody.innerHTML = '';
+            const searchVal = document.getElementById('search-inventory').value.toLowerCase().trim();
+            const catFilter = document.getElementById('filter-category').value;
+            const filtered = inventory.filter(i => i.name.toLowerCase().includes(searchVal) && (catFilter === 'all' || i.category === catFilter));
+            document.getElementById('total-items-count').innerText = inventory.length;
+
+            if(filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold">ไม่พบรายการ</td></tr>`; return; }
+
+            filtered.forEach((item, index) => {
+                const typeBadge = item.itemType === 'borrow' ? '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-[10px] font-extrabold uppercase tracking-wide border border-slate-200">ยืมคืน</span>' : '<span class="px-2.5 py-1 bg-orange-50 text-orange-600 rounded-md text-[10px] font-extrabold uppercase tracking-wide border border-orange-200">เบิกขาด</span>';
+                let qtyColor = Number(item.qty) > 15 ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : (Number(item.qty) > 0 ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-rose-50 text-rose-600 border-rose-200');
+                const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100";
+                tr.innerHTML = `<td class="p-4 text-center font-bold text-slate-400 text-xs">${index + 1}</td><td class="p-4"><span class="font-extrabold text-slate-800">${window.escapeHTML(item.name)}</span></td><td class="p-4">${item.size ? `<span class="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[11px] font-bold">${window.escapeHTML(item.size)}</span>` : '-'}</td><td class="p-4 text-xs font-bold text-slate-500">${window.escapeHTML(item.category)}</td><td class="p-4 text-center">${typeBadge}</td><td class="p-4 text-right font-extrabold text-slate-700">${Number(item.price||0).toLocaleString()}</td><td class="p-4 text-center"><span class="px-3 py-1 rounded-lg text-xs font-extrabold border ${qtyColor}">${item.qty}</span></td><td class="p-4 text-center opacity-80 group-hover:opacity-100 transition-opacity"><button onclick="window.openEditItemModal('${item.id}')" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors mx-1" title="แก้ไข"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="window.deleteInventoryItem('${item.id}')" class="w-8 h-8 rounded-lg bg-white border border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors mx-1" title="ลบ"><i class="fa-solid fa-trash-can text-xs"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.openAddItemModal = function() { document.getElementById('item-edit-form').reset(); document.getElementById('edit-item-index').value = ''; document.getElementById('item-modal-title').innerHTML = '<i class="fa-solid fa-box-open text-orange-500 mr-2"></i> เพิ่มวัสดุสำนักงานใหม่'; window.openModal('item-modal'); };
+        window.openEditItemModal = function(id) { const i = inventory.find(x => x.id === id); if(!i) return; document.getElementById('item-modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-orange-500 mr-2"></i> แก้ไขข้อมูลวัสดุ'; document.getElementById('edit-item-index').value = i.id; document.getElementById('modal-item-name').value = i.name; document.getElementById('modal-item-size').value = i.size || ''; document.getElementById('modal-item-category').value = i.category || 'อื่นๆ'; document.getElementById('modal-item-type').value = i.itemType || 'consume'; document.getElementById('modal-item-price').value = i.price; document.getElementById('modal-item-qty').value = i.qty; window.openModal('item-modal'); };
+        window.handleItemFormSubmit = function(e) { e.preventDefault(); const id = document.getElementById('edit-item-index').value; const itemObj = { id: id || 'item-' + Date.now(), name: document.getElementById('modal-item-name').value.trim(), size: document.getElementById('modal-item-size').value.trim(), category: document.getElementById('modal-item-category').value, itemType: document.getElementById('modal-item-type').value, price: parseFloat(document.getElementById('modal-item-price').value) || 0, qty: parseInt(document.getElementById('modal-item-qty').value) || 0 }; window.executeWithSyncAndSave(() => { if(id) { const idx = inventory.findIndex(i => i.id === id); if(idx > -1) inventory[idx] = itemObj; else inventory.push(itemObj); } else { inventory.push(itemObj); } }, 'บันทึกสำเร็จ', () => { window.closeModal('item-modal'); window.renderInventory(); }); };
+        window.deleteInventoryItem = function(id) { Swal.fire({ title: 'ยืนยันลบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ใช่, ลบเลย' }).then((res) => { if (res.isConfirmed) { window.executeWithSyncAndSave(() => { const itemToDel = inventory.find(i => i.id === id); if(itemToDel) { trashItems.unshift({ trashId: 'trash-' + Date.now(), dataType: 'inventory', deletedAt: new Date().toISOString(), data: itemToDel }); inventory = inventory.filter(i => i.id !== id); } }, 'ย้ายไปถังขยะแล้ว', () => window.renderInventory()); } }); };
+
+        window.renderUsers = function() {
+            const tbody = document.getElementById('users-tbody'); if(!tbody) return; tbody.innerHTML = '';
+            const searchVal = document.getElementById('search-users').value.toLowerCase().trim();
+            const filtered = systemUsers.filter(u => u.name.toLowerCase().includes(searchVal) || u.empId.toLowerCase().includes(searchVal));
+            document.getElementById('total-users-count').innerText = systemUsers.length;
+            const emptyEl = document.getElementById('users-empty');
+            if(filtered.length === 0) { if(emptyEl) emptyEl.classList.remove('hidden'); return; } if(emptyEl) emptyEl.classList.add('hidden');
+
+            filtered.forEach((user, index) => {
+                const roleBadge = user.role.includes('Admin') ? '<span class="px-2.5 py-1 bg-slate-800 text-white rounded-md text-[10px] font-extrabold uppercase tracking-wide">Admin</span>' : '<span class="px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-extrabold uppercase tracking-wide">พนักงานทั่วไป</span>';
+                const passBadge = user.password ? '<i class="fa-solid fa-key text-orange-400 ml-2 text-[10px]" title="ตั้งรหัสผ่านแล้ว"></i>' : '';
+                const picSrc = user.profileImage || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cbd5e1"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
+                
+                const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100";
+                tr.innerHTML = `<td class="p-4 text-center font-bold text-slate-400 text-xs">${index + 1}</td><td class="p-4 font-mono font-bold text-slate-600">${window.escapeHTML(user.empId)}</td><td class="p-4"><div class="flex items-center gap-3"><img src="${picSrc}" class="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-sm"><span class="font-extrabold text-slate-800">${window.escapeHTML(user.name)} ${passBadge}</span></div></td><td class="p-4 text-xs font-bold text-slate-500">${window.escapeHTML(user.position || '-')}</td><td class="p-4 text-xs font-bold text-slate-500">${window.escapeHTML(user.department || '-')}</td><td class="p-4 text-center">${roleBadge}</td><td class="p-4 text-center opacity-80 group-hover:opacity-100 transition-opacity"><button onclick="window.openEditUserModal('${user.id}')" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors mx-1" title="แก้ไข"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="window.deleteSystemUser('${user.id}')" class="w-8 h-8 rounded-lg bg-white border border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors mx-1" title="ลบ"><i class="fa-solid fa-trash-can text-xs"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        };
+        
+        window.openAddUserModal = function() { 
+            document.getElementById('user-edit-form').reset(); 
+            document.getElementById('edit-user-id').value = ''; 
+            document.getElementById('modal-user-password').value = ''; 
+            document.getElementById('modal-user-profile-data').value = '';
+            document.getElementById('profile-preview-container').innerHTML = '<i class="fa-solid fa-user text-4xl text-slate-300"></i>';
+            document.getElementById('user-modal-title').innerHTML = '<i class="fa-solid fa-user-plus text-orange-500 mr-2"></i> เพิ่มผู้เข้าใช้ระบบ'; 
+            window.openModal('user-modal'); 
+        };
+        
+        window.openEditUserModal = function(id) { 
+            const u = systemUsers.find(x => x.id === id); if(!u) return; 
+            document.getElementById('user-modal-title').innerHTML = '<i class="fa-solid fa-user-pen text-orange-500 mr-2"></i> แก้ไขข้อมูลผู้ใช้งาน'; 
+            document.getElementById('edit-user-id').value = u.id; 
+            document.getElementById('modal-user-empid').value = u.empId; 
+            document.getElementById('modal-user-name').value = u.name; 
+            document.getElementById('modal-user-pos').value = u.position || ''; 
+            document.getElementById('modal-user-dept').value = u.department || ''; 
+            document.getElementById('modal-user-role').value = u.role || 'พนักงานทั่วไป'; 
+            document.getElementById('modal-user-password').value = u.password || ''; 
+            document.getElementById('modal-user-profile-data').value = u.profileImage || '';
+            if(u.profileImage) document.getElementById('profile-preview-container').innerHTML = `<img src="${u.profileImage}" class="w-full h-full object-cover">`;
+            else document.getElementById('profile-preview-container').innerHTML = '<i class="fa-solid fa-user text-4xl text-slate-300"></i>';
+            window.openModal('user-modal'); 
+        };
+        
+        window.handleUserFormSubmit = function(e) { 
+            e.preventDefault(); 
+            const id = document.getElementById('edit-user-id').value; 
+            const empIdVal = document.getElementById('modal-user-empid').value.trim(); 
+            const userData = { 
+                id: id || 'user-' + Date.now(), 
+                empId: empIdVal, 
+                name: document.getElementById('modal-user-name').value.trim(), 
+                position: document.getElementById('modal-user-pos').value.trim(), 
+                department: document.getElementById('modal-user-dept').value.trim(), 
+                role: document.getElementById('modal-user-role').value, 
+                password: document.getElementById('modal-user-password').value.trim(),
+                profileImage: document.getElementById('modal-user-profile-data').value 
+            }; 
+            window.executeWithSyncAndSave(() => { 
+                const isDuplicate = systemUsers.some(u => u.empId === empIdVal && u.id !== id); 
+                if(isDuplicate) throw new Error("รหัสพนักงานนี้มีในระบบแล้ว"); 
+                if(id) { 
+                    const idx = systemUsers.findIndex(u => u.id === id); 
+                    if(idx > -1) systemUsers[idx] = userData; else systemUsers.push(userData); 
+                } else { 
+                    systemUsers.push(userData); 
+                } 
+            }, 'บันทึกสำเร็จ', () => { window.closeModal('user-modal'); window.renderUsers(); }); 
+        };
+        
+        window.handleImageUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 150; 
+                    let width = img.width; let height = img.height;
+                    if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+                    else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
+                    document.getElementById('profile-preview-container').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
+                    document.getElementById('modal-user-profile-data').value = dataUrl;
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        };
+
+        window.deleteSystemUser = function(id) { 
+            Swal.fire({ title: 'ยืนยันลบผู้ใช้งาน?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then((res) => { 
+                if (res.isConfirmed) { 
+                    window.executeWithSyncAndSave(() => { 
+                        const userToDel = systemUsers.find(u => u.id === id); 
+                        if(userToDel) { 
+                            trashItems.unshift({ trashId: 'trash-' + Date.now(), dataType: 'user', deletedAt: new Date().toISOString(), data: userToDel }); 
+                            systemUsers = systemUsers.filter(u => u.id !== id); 
+                        } 
+                    }, 'ย้ายไปถังขยะแล้ว', () => window.renderUsers()); 
+                } 
+            }); 
+        };
+
+        // --- Checkout Logic ---
+        window.toggleCustomEmpType = function() { 
+            const select = document.getElementById('chk-emp-type'); 
+            const customInput = document.getElementById('chk-emp-type-custom-container'); 
+            if(!select || !customInput) return; 
+            if (select.value === 'custom') { 
+                customInput.classList.remove('hidden'); 
+                document.getElementById('chk-emp-type-custom').setAttribute('required', 'true'); 
+            } else { 
+                customInput.classList.add('hidden'); 
+                document.getElementById('chk-emp-type-custom').removeAttribute('required'); 
+            } 
+        };
+
+        window.populateCheckoutDropdown = function() { const datalist = document.getElementById('inventory-datalist'); if(!datalist) return; datalist.innerHTML = ''; [...inventory].sort((a,b) => a.name.localeCompare(b.name, 'th')).forEach(item => { const option = document.createElement('option'); option.value = item.size ? `${item.name} (ไซส์ ${item.size})` : item.name; datalist.appendChild(option); }); };
+        window.onItemInputChanged = function(input) { const val = input.value.trim().toLowerCase(); const row = input.closest('.checkout-item-row'); if(!row) return; const found = inventory.find(i => (i.size ? `${i.name} (ไซส์ ${i.size})`.toLowerCase() : i.name.toLowerCase()) === val); const hint = row.querySelector('.item-stock-hint'); const typeSel = row.querySelector('.chk-type'); if(found) { let qtyColor = Number(found.qty) > 0 ? 'text-emerald-600' : 'text-rose-500'; if(hint) hint.innerHTML = `<span class="${qtyColor} font-bold bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200"><i class="fa-solid fa-boxes-stacked mr-1"></i>ในคลัง: ${found.qty} ชิ้น</span>`; if(typeSel) typeSel.value = found.itemType; } else if(hint) { hint.innerHTML = ''; } };
+        window.addCheckoutRow = function() { const container = document.getElementById('checkout-items-container'); if(!container || !container.children[0]) return; const nRow = document.createElement('div'); nRow.innerHTML = container.children[0].outerHTML; const rowEl = nRow.firstElementChild; rowEl.querySelector('.chk-item-name').value = ''; rowEl.querySelector('.chk-qty').value = '1'; rowEl.querySelector('.item-stock-hint').innerHTML = ''; const delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = "absolute -top-3 -right-3 w-7 h-7 bg-white border border-rose-200 text-rose-500 rounded-full font-bold shadow-sm hover:bg-rose-500 hover:text-white transition-colors flex items-center justify-center"; delBtn.innerHTML = '<i class="fa-solid fa-xmark text-xs"></i>'; delBtn.onclick = function() { rowEl.remove(); }; rowEl.appendChild(delBtn); container.appendChild(rowEl); };
+        window.resetCheckoutForm = function() { const form = document.getElementById('checkout-form'); if(form) form.reset(); const container = document.getElementById('checkout-items-container'); if(container) { while(container.children.length > 1) container.lastChild.remove(); const hint = container.querySelector('.item-stock-hint'); if(hint) hint.innerHTML = ''; } const chkDate = document.getElementById('chk-date'); if(chkDate) chkDate.value = new Date().toISOString().split('T')[0]; window.toggleCustomEmpType(); };
+        
+        window.handleCheckoutSubmit = function(e) {
+            e.preventDefault();
+            const empId = document.getElementById('chk-emp-id').value.trim(); 
+            const empName = document.getElementById('chk-emp-name').value.trim(); 
+            const position = document.getElementById('chk-position').value.trim(); 
+            const department = document.getElementById('chk-department').value.trim(); 
+            
+            let empType = document.getElementById('chk-emp-type').value; 
+            if (empType === 'custom') empType = document.getElementById('chk-emp-type-custom').value.trim(); 
+            
+            const date = document.getElementById('chk-date').value; 
+            const billId = 'BILL-' + Date.now();
+            let added = 0; let summaryItems = []; let stockError = false; let newTransactions = [];
+            
+            document.querySelectorAll('.checkout-item-row').forEach(row => {
+                const itemName = row.querySelector('.chk-item-name').value.trim(); const qty = parseInt(row.querySelector('.chk-qty').value) || 1; const type = row.querySelector('.chk-type').value;
+                if (itemName) { const foundInv = inventory.find(i => (i.size ? `${i.name} (ไซส์ ${i.size})`.toLowerCase() : i.name.toLowerCase()) === itemName.toLowerCase()); newTransactions.push({ id: 'tx-' + Math.random().toString(36).substr(2, 9), billId, empId, empName, position, department, empType, date, itemName, qty, type, status: 'pending_approval', returnDate: '' }); summaryItems.push(`- ${itemName} (${qty} ชิ้น)`); added++; if(foundInv && Number(foundInv.qty) < qty) stockError = true; }
+            });
+            if(added > 0) { if(stockError) { Swal.fire({ icon:'warning', title: 'ของในคลังอาจมีไม่พอ', text: 'บางรายการมีจำนวนขอเบิกมากกว่าที่มีในคลัง คุณแน่ใจหรือไม่?', showCancelButton: true, confirmButtonText: 'ยืนยันส่งคำขอ', confirmButtonColor: '#f97316' }).then((res) => { if(res.isConfirmed) submitFinalCheckout(added, empName, empId, department, summaryItems, newTransactions); }); } else { submitFinalCheckout(added, empName, empId, department, summaryItems, newTransactions); } }
+        };
+        
+        function submitFinalCheckout(added, empName, empId, department, summaryItems, newTransactions) {
+            window.showLoader('กำลังบันทึกข้อมูลและเข้าคิว...');
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(function(res) {
+                    window.hideLoader();
+                    if(res && res.success) { window.resetCheckoutForm(); if(!window.isEmployeeMode) window.switchTab('dashboard'); Swal.fire({ icon: 'success', title: 'สำเร็จ', text: `ส่ง ${added} รายการรอการอนุมัติ`, timer: 2000, showConfirmButton: false }); window.fetchDataFromServer(); } 
+                    else { Swal.fire({ icon: 'error', title: 'ไม่สามารถส่งคำขอได้', text: res ? res.error : 'Unknown error', confirmButtonColor: '#0f172a' }); }
+                }).withFailureHandler(function(err) { window.hideLoader(); Swal.fire({ icon: 'error', title: 'การเชื่อมต่อขัดข้อง', text: err.message, confirmButtonColor: '#0f172a' }); }).submitCheckoutTransactions(newTransactions);
+            } else {
+                newTransactions.forEach(tx => transactions.unshift(tx)); window.hideLoader(); window.resetCheckoutForm(); Swal.fire({ icon: 'success', title: 'สำเร็จ (Local)', timer: 2000, showConfirmButton: false }); if(!window.isEmployeeMode) window.switchTab('dashboard'); window.updatePendingBadge();
+            }
+        }
+
+        // --- Approvals ---
+        window.renderApprovals = function() {
+            const tbody = document.getElementById('approvals-tbody'); if(!tbody) return; tbody.innerHTML = '';
+            const pendingReqs = transactions.filter(t => t.status === 'pending_approval');
+            const emptyEl = document.getElementById('approvals-empty');
+            if(pendingReqs.length === 0) { if(emptyEl) emptyEl.classList.remove('hidden'); return; } if(emptyEl) emptyEl.classList.add('hidden');
+            pendingReqs.forEach(tx => {
+                const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100";
+                const badgeClass = tx.type === 'borrow' ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-orange-50 text-orange-600 border-orange-200';
+                tr.innerHTML = `<td class="p-4 pl-6 text-[12px] font-bold text-slate-500 whitespace-nowrap">${window.formatDateThai(tx.date)}</td><td class="p-4"><div class="font-extrabold text-slate-800">${window.escapeHTML(tx.empName)}</div><div class="text-[10px] font-bold text-slate-400 mt-0.5"><i class="fa-regular fa-id-badge text-orange-400"></i> ${window.escapeHTML(tx.empId)} | ${window.escapeHTML(tx.department)}</div></td><td class="p-4 font-extrabold text-slate-700">${window.escapeHTML(tx.itemName)}</td><td class="p-4 text-center"><span class="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg font-extrabold text-xs">${tx.qty}</span></td><td class="p-4 text-center"><span class="px-2.5 py-1 rounded-md text-[10px] uppercase font-extrabold border ${badgeClass}">${tx.type === 'borrow' ? 'ยืมคืน' : 'เบิกขาด'}</span></td><td class="p-4 text-center flex flex-wrap justify-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity"><button onclick="window.approveRequest('${tx.id}')" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[11px] font-extrabold shadow-sm"><i class="fa-solid fa-check"></i> อนุมัติ</button><button onclick="window.rejectRequest('${tx.id}')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-[11px] font-extrabold shadow-sm"><i class="fa-solid fa-xmark"></i> ปฏิเสธ</button><button onclick="window.deleteRequest('${tx.id}')" class="px-3 py-1.5 bg-white border border-rose-200 hover:bg-rose-50 text-rose-500 rounded-lg text-[11px] font-extrabold shadow-sm" title="ลบทิ้ง"><i class="fa-regular fa-trash-can"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        };
+        window.approveRequest = function(id) {
+            window.showLoader('กำลังประมวลผลอนุมัติ...');
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(function(res) { window.hideLoader(); if(res && res.success) { Swal.fire({ icon: 'success', title: 'อนุมัติสำเร็จ', timer: 1500, showConfirmButton: false }); window.fetchDataFromServer(); } else { Swal.fire({ icon: 'error', title: 'ผิดพลาด', text: res ? res.error : 'Unknown', confirmButtonColor: '#0f172a' }); } }).withFailureHandler(function(err) { window.hideLoader(); Swal.fire({ icon: 'error', text: err.message, confirmButtonColor: '#0f172a' }); }).processTransactionAction(id, 'approve');
+            } else {
+                const tx = transactions.find(t => t.id === id); if(!tx) return; const invItem = inventory.find(i => (i.size ? `${i.name} (ไซส์ ${i.size})`.toLowerCase() : i.name.toLowerCase()) === tx.itemName.toLowerCase()); if(invItem) { if(invItem.qty < tx.qty) { window.hideLoader(); Swal.fire({icon:'error', title:'สต๊อกไม่พอ', confirmButtonColor: '#0f172a'}); return; } invItem.qty -= tx.qty; } tx.status = tx.type === 'borrow' ? 'pending' : 'consumed'; window.hideLoader(); window.renderApprovals(); window.renderInventory(); window.updatePendingBadge();
+            }
+        };
+        window.rejectRequest = function(id) { Swal.fire({ title: 'ปฏิเสธคำขอ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#0f172a', confirmButtonText: 'ยืนยันปฏิเสธ' }).then(res => { if(res.isConfirmed){ window.showLoader('กำลังบันทึก...'); if (typeof google !== 'undefined' && google.script && google.script.run) { google.script.run.withSuccessHandler(function(res) { window.hideLoader(); if(res && res.success) { Swal.fire({ icon: 'success', title: 'ปฏิเสธแล้ว', timer: 1500, showConfirmButton: false }); window.fetchDataFromServer(); } else { Swal.fire({ icon: 'error', text: res ? res.error : 'Unknown', confirmButtonColor: '#0f172a' }); } }).withFailureHandler(function(err) { window.hideLoader(); Swal.fire({ icon: 'error', text: err.message, confirmButtonColor: '#0f172a' }); }).processTransactionAction(id, 'reject'); } else { const tx = transactions.find(t => t.id === id); if(tx) tx.status = 'rejected'; window.hideLoader(); window.renderApprovals(); window.updatePendingBadge(); } } }) };
+        window.deleteRequest = function(id) { Swal.fire({ title: 'ลบคำขอนี้ทิ้ง?', icon: 'error', showCancelButton: true, confirmButtonColor: '#ef4444' }).then((res) => { if (res.isConfirmed) { window.executeWithSyncAndSave(() => { const txToDel = transactions.find(t => t.id === id); if(txToDel) { trashItems.unshift({ trashId: 'trash-' + Date.now(), dataType: 'transaction', deletedAt: new Date().toISOString(), data: txToDel }); transactions = transactions.filter(t => t.id !== id); } }, 'ลบแล้ว', () => window.renderApprovals()); } }); };
+        window.returnItem = function(id) { Swal.fire({ title: 'ยืนยันรับคืนเข้าคลัง?', icon: 'info', showCancelButton: true, confirmButtonColor: '#10b981' }).then((res) => { if(res.isConfirmed) { window.showLoader('กำลังประมวลผลรับคืน...'); if (typeof google !== 'undefined' && google.script && google.script.run) { google.script.run.withSuccessHandler(function(res) { window.hideLoader(); if(res && res.success) { Swal.fire({ icon: 'success', title: 'รับคืนเสร็จสิ้น', timer: 1500, showConfirmButton: false }); window.fetchDataFromServer(); } else { Swal.fire({ icon: 'error', text: res ? res.error : 'Unknown', confirmButtonColor: '#0f172a' }); } }).withFailureHandler(function(err) { window.hideLoader(); Swal.fire({ icon: 'error', text: err.message, confirmButtonColor: '#0f172a' }); }).processTransactionAction(id, 'return'); } else { const tx = transactions.find(t => t.id === id); if(tx) { tx.status = 'returned'; tx.returnDate = new Date().toISOString().split('T')[0]; const invItem = inventory.find(i => (i.size ? `${i.name} (ไซส์ ${i.size})`.toLowerCase() : i.name.toLowerCase()) === tx.itemName.toLowerCase()); if(invItem) invItem.qty = Number(invItem.qty) + Number(tx.qty); window.hideLoader(); window.renderActiveHistory(); window.renderInventory(); } } } }); };
+        window.deleteTxHistory = function(id) { Swal.fire({ title: 'ลบประวัตินี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then((res) => { if(res.isConfirmed) { window.executeWithSyncAndSave(() => { const txToDel = transactions.find(t => t.id === id); if(txToDel) { trashItems.unshift({ trashId: 'trash-' + Date.now(), dataType: 'transaction', deletedAt: new Date().toISOString(), data: txToDel }); transactions = transactions.filter(t => t.id !== id); } }, 'ลบประวัติแล้ว', () => window.renderActiveHistory()); } }); };
+
+        // --- Tx Modals & Print ---
+        window.openTxDetailModal = function(id) { const tx = transactions.find(t => t.id === id); if(!tx) return; document.getElementById('modal-tx-id-edit').value = tx.id; document.getElementById('edit-tx-emp-id').value = tx.empId; document.getElementById('edit-tx-emp-name').value = tx.empName; document.getElementById('edit-tx-department').value = tx.department; document.getElementById('info-tx-item').innerText = tx.itemName; document.getElementById('info-tx-qty').innerText = tx.qty + " ชิ้น"; document.getElementById('info-tx-date').innerText = window.formatDateThai(tx.date); let statusText = 'เบิกขาด (ใช้งาน)'; if(tx.status === 'pending') statusText = 'รอนำมาคืน'; else if(tx.status === 'returned') statusText = `คืนแล้วเมื่อ ${window.formatDateThai(tx.returnDate)}`; document.getElementById('info-tx-status').innerHTML = `<span class="bg-white px-2 py-0.5 rounded text-xs border border-slate-200 text-slate-700 font-bold">${statusText}</span>`; window.openModal('tx-modal'); };
+        window.handleTxEditSubmit = function(e) { e.preventDefault(); const editId = document.getElementById('modal-tx-id-edit').value; const newEmpId = document.getElementById('edit-tx-emp-id').value.trim(); const newEmpName = document.getElementById('edit-tx-emp-name').value.trim(); const newDept = document.getElementById('edit-tx-department').value.trim(); window.executeWithSyncAndSave(() => { const tx = transactions.find(t => t.id === editId); if(tx) { tx.empId = newEmpId; tx.empName = newEmpName; tx.department = newDept; } }, 'อัปเดตข้อมูลสำเร็จ', () => { window.renderActiveHistory(); window.closeModal('tx-modal'); }); };
+        window.printTxDocument = function() { const tx = transactions.find(t => t.id === document.getElementById('modal-tx-id-edit').value); if(!tx) return; setupSlipData(tx); window.closeModal('tx-modal'); document.body.classList.add('print-slip'); window.print(); setTimeout(() => { document.body.classList.remove('print-slip'); }, 500); };
+        window.downloadTxPdf = function() { const tx = transactions.find(t => t.id === document.getElementById('modal-tx-id-edit').value); if(!tx) return; setupSlipData(tx); window.closeModal('tx-modal'); const area = document.getElementById('slip-printable-area'); area.classList.remove('hidden'); const opt = { margin: 10, filename: `Slip_${tx.billId}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }; Swal.fire({ title: 'กำลังดาวน์โหลด PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); html2pdf().from(area).set(opt).save().then(() => { area.classList.add('hidden'); Swal.close(); }); };
+        function setupSlipData(tx) {
+            const itemsInSameBill = transactions.filter(t => t.billId === tx.billId);
+            document.getElementById('slip-emp-name').innerText = window.escapeHTML(tx.empName); document.getElementById('slip-position').innerText = window.escapeHTML(tx.position || '-'); document.getElementById('slip-emp-id').innerText = window.escapeHTML(tx.empId); document.getElementById('slip-department').innerText = window.escapeHTML(tx.department); document.getElementById('slip-sign-name').innerText = window.escapeHTML(tx.empName);
+            const slipTbody = document.getElementById('slip-tbody'); slipTbody.innerHTML = '';
+            itemsInSameBill.forEach((item, index) => {
+                const invItem = inventory.find(i => (i.size ? `${i.name} (ไซส์ ${i.size})`.toLowerCase() : i.name.toLowerCase()) === item.itemName.toLowerCase());
+                const price = invItem ? Number(invItem.price || 0).toLocaleString() : '-';
+                slipTbody.innerHTML += `<tr><td class="p-3 border border-slate-800 text-center">${index + 1}</td><td class="p-3 border border-slate-800 text-left pl-4 font-bold">${window.escapeHTML(item.itemName)}</td><td class="p-3 border border-slate-800 text-center">${item.qty}</td><td class="p-3 border border-slate-800 text-right pr-4">${price} บาท</td><td class="p-3 border border-slate-800 text-center font-bold">✓</td><td class="p-3 border border-slate-800 text-center"></td><td class="p-3 border border-slate-800 text-center text-xs text-slate-500">${item.type === 'borrow' ? 'ยืมและคืน' : 'เบิกขาด'}</td></tr>`;
+            });
+        }
+
+        // --- History Logic ---
+        window.formatDateThai = function(dateStr) { if(!dateStr) return '-'; const parts = dateStr.split('-'); if(parts.length !== 3) return dateStr; return `${parts[2]}/${parts[1]}/${parseInt(parts[0]) + 543}`; };
+        window.toggleCustomDateFilters = function() { const sel = document.getElementById('filter-daterange'); const cont = document.getElementById('custom-date-container'); if(!sel || !cont) return; if(sel.value === 'custom') { cont.classList.remove('hidden'); cont.classList.add('flex'); } else { cont.classList.add('hidden'); cont.classList.remove('flex'); document.getElementById('filter-start-date').value = ''; document.getElementById('filter-end-date').value = ''; } };
+        window.isDateInRange = function(dateStr, rangeType) { if(rangeType === 'all' || !dateStr) return true; const tDate = new Date(dateStr); tDate.setHours(0,0,0,0); const today = new Date(); today.setHours(0,0,0,0); if(rangeType === 'custom') { const sStr = document.getElementById('filter-start-date').value; const eStr = document.getElementById('filter-end-date').value; if(sStr && eStr) return tDate >= new Date(sStr) && tDate <= new Date(eStr); if(sStr) return tDate >= new Date(sStr); if(eStr) return tDate <= new Date(eStr); return true; } if(rangeType === 'today') return tDate.getTime() === today.getTime(); if(rangeType === 'yesterday') { const y = new Date(today); y.setDate(y.getDate()-1); return tDate.getTime() === y.getTime(); } if(rangeType === 'this_month') return tDate >= new Date(today.getFullYear(), today.getMonth(), 1) && tDate <= today; return true; };
+        window.populateEmployeeFilterDropdown = function() { const empSelect = document.getElementById('filter-employee'); if(!empSelect) return; const currentVal = empSelect.value; const employees = [...new Set(transactions.filter(t => t.status !== 'pending_approval' && t.status !== 'rejected').map(t => t.empName))]; empSelect.innerHTML = '<option value="all">ทุกคน</option>'; employees.sort().forEach(emp => { const opt = document.createElement('option'); opt.value = emp; opt.innerText = emp; empSelect.appendChild(opt); }); empSelect.value = employees.includes(currentVal) ? currentVal : 'all'; };
+        
+        window.renderActiveHistory = function() {
+            const isConsumed = currentTab === 'consumed'; const tbodyId = isConsumed ? 'consumed-tbody' : 'borrow-tbody'; const emptyId = isConsumed ? 'consumed-empty' : 'borrow-empty';
+            const tbody = document.getElementById(tbodyId); if(!tbody) return; tbody.innerHTML = '';
+            const search = document.getElementById('search-tx').value.toLowerCase().trim(); const selectedEmp = document.getElementById('filter-employee').value; const dateFilter = document.getElementById('filter-daterange').value; const statusFilter = isConsumed ? 'all' : document.getElementById('filter-status').value;
+            const filtered = transactions.filter(tx => { if(tx.status === 'pending_approval' || tx.status === 'rejected') return false; if(isConsumed && tx.type !== 'consume') return false; if(!isConsumed && tx.type !== 'borrow') return false; const mSearch = tx.empName.toLowerCase().includes(search) || tx.empId.toLowerCase().includes(search) || tx.itemName.toLowerCase().includes(search); const mEmp = selectedEmp === 'all' || tx.empName === selectedEmp; return mSearch && mEmp && window.isDateInRange(tx.date, dateFilter) && (statusFilter === 'all' || tx.status === statusFilter); }).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const emptyEl = document.getElementById(emptyId); if(filtered.length === 0) { if(emptyEl) emptyEl.classList.remove('hidden'); return; } if(emptyEl) emptyEl.classList.add('hidden');
+
+            filtered.forEach(tx => {
+                const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100";
+                let statusBadge, actionBtn = `<div class="flex items-center justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">`;
+                if(isConsumed) { statusBadge = `<span class="px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[11px] font-bold shadow-sm"><i class="fa-solid fa-check text-slate-400 mr-1"></i> เสร็จสิ้น</span>`; actionBtn += `<button onclick="window.openTxDetailModal('${tx.id}')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="window.openTxDetailModal('${tx.id}')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-file-invoice text-xs"></i></button>`; } 
+                else { if(tx.status === 'pending') { statusBadge = `<span class="px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-md text-[11px] font-bold shadow-sm animate-pulse"><i class="fa-regular fa-clock mr-1"></i> รอคืน</span>`; actionBtn += `<button onclick="window.returnItem('${tx.id}')" class="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-[11px] font-extrabold hover:bg-emerald-600 shadow-sm transition-colors mx-1 flex items-center gap-1"><i class="fa-solid fa-reply"></i> รับคืน</button>`; } else { statusBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-md text-[11px] font-bold shadow-sm"><i class="fa-solid fa-check-double mr-1"></i> คืนแล้ว<br><span class="text-[9px] font-normal opacity-80">${window.formatDateThai(tx.returnDate)}</span></span>`; } actionBtn += `<button onclick="window.openTxDetailModal('${tx.id}')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-pen text-xs"></i></button><button onclick="window.openTxDetailModal('${tx.id}')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-800 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-file-invoice text-xs"></i></button>`; } actionBtn += `<button onclick="window.deleteTxHistory('${tx.id}')" class="w-8 h-8 rounded-lg bg-white border border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-trash-can text-xs"></i></button></div>`;
+                tr.innerHTML = `<td class="p-4 pl-6 text-[12px] font-bold text-slate-500 whitespace-nowrap">${window.formatDateThai(tx.date)}</td><td class="p-4"><div class="flex items-center gap-2"><span class="font-extrabold text-slate-800">${window.escapeHTML(tx.empName)}</span></div><div class="mt-1.5 inline-block bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-extrabold px-2 py-0.5 rounded-md shadow-sm"><i class="fa-regular fa-id-badge text-orange-400"></i> ${window.escapeHTML(tx.empId)}</div></td><td class="p-4 font-extrabold text-slate-700">${window.escapeHTML(tx.itemName)}</td><td class="p-4 text-center"><span class="bg-white text-slate-800 border border-slate-200 px-2.5 py-1 rounded-lg font-extrabold text-xs inline-block min-w-[2.5rem] shadow-sm">${tx.qty}</span></td><td class="p-4 text-center">${statusBadge}</td><td class="p-4 text-center no-print">${actionBtn}</td>`;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.getExportData = function() { const isConsumed = currentTab === 'consumed'; const search = document.getElementById('search-tx').value.toLowerCase().trim(); const selectedEmp = document.getElementById('filter-employee').value; const dateFilter = document.getElementById('filter-daterange').value; const statusFilter = isConsumed ? 'all' : document.getElementById('filter-status').value; return transactions.filter(tx => { if(tx.status === 'pending_approval' || tx.status === 'rejected') return false; if(isConsumed && tx.type !== 'consume') return false; if(!isConsumed && tx.type !== 'borrow') return false; const mSearch = tx.empName.toLowerCase().includes(search) || tx.empId.toLowerCase().includes(search) || tx.itemName.toLowerCase().includes(search); const mEmp = selectedEmp === 'all' || tx.empName === selectedEmp; return mSearch && mEmp && window.isDateInRange(tx.date, dateFilter) && (statusFilter === 'all' || tx.status === statusFilter); }).sort((a, b) => new Date(b.date) - new Date(a.date)); };
+        
+        window.getExportFileName = function(baseName, extension) {
+            const empSelect = document.getElementById('filter-employee');
+            const empSuffix = (empSelect && empSelect.value !== 'all') ? `_${empSelect.value.replace(/\s+/g, '-')}` : '';
+            return `${baseName}${empSuffix}_${new Date().toISOString().split('T')[0]}.${extension}`;
+        };
+
+        window.exportToExcel = function() { const data = window.getExportData(); if(!data.length) { Swal.fire({icon:'info', title:'ไม่มีข้อมูลให้ส่งออก', confirmButtonColor: '#0f172a'}); return; } const exportRows = data.map((tx, idx) => ({ 'ลำดับ': idx + 1, 'วันที่ทำรายการ': window.formatDateThai(tx.date), 'รหัสพนักงาน': tx.empId, 'ชื่อ-นามสกุล': tx.empName, 'แผนก': tx.department, 'รายการวัสดุสำนักงาน': tx.itemName, 'จำนวน': tx.qty, 'ประเภท': tx.type === 'borrow' ? 'ยืม' : 'เบิกขาด', 'สถานะ': tx.status === 'pending' ? 'รอคืน' : (tx.status === 'returned' ? `คืนแล้ว (${window.formatDateThai(tx.returnDate)})` : 'เสร็จสิ้น') })); const ws = XLSX.utils.json_to_sheet(exportRows); const colWidths = Object.keys(exportRows[0]).map(k => ({wch: k.length + 10})); ws['!cols'] = colWidths; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Report"); XLSX.writeFile(wb, window.getExportFileName('Inventory_Report', 'xlsx')); };
+
+        window.renderTrash = function() {
+            const tbody = document.getElementById('trash-tbody'); if(!tbody) return; tbody.innerHTML = ''; const emptyEl = document.getElementById('trash-empty');
+            if(trashItems.length === 0) { if(emptyEl) emptyEl.classList.remove('hidden'); return; } if(emptyEl) emptyEl.classList.add('hidden');
+            trashItems.forEach(item => {
+                let typeLabel, detailText;
+                if(item.dataType === 'inventory') { typeLabel = '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-extrabold uppercase tracking-wider"><i class="fa-solid fa-box mr-1 text-orange-500"></i>วัสดุสำนักงาน</span>'; detailText = `<span class="font-bold text-slate-800">${window.escapeHTML(item.data.name)}</span> (หมวด: ${window.escapeHTML(item.data.category)})`; } else if(item.dataType === 'user') { typeLabel = '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-extrabold uppercase tracking-wider"><i class="fa-solid fa-user mr-1 text-orange-500"></i>ผู้ใช้งาน</span>'; detailText = `<span class="font-bold text-slate-800">${window.escapeHTML(item.data.name)}</span> (รหัส: ${window.escapeHTML(item.data.empId)})`; } else if(item.dataType === 'transaction') { typeLabel = '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-extrabold uppercase tracking-wider"><i class="fa-solid fa-file-invoice mr-1 text-orange-500"></i>คำขอ/ประวัติ</span>'; detailText = `เบิกโดย: <span class="font-bold text-slate-800">${window.escapeHTML(item.data.empName)}</span> | รายการ: ${window.escapeHTML(item.data.itemName)} x${item.data.qty}`; }
+                const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 transition-colors group border-b border-slate-100"; tr.innerHTML = `<td class="p-4 text-[11px] font-bold text-slate-500 pl-6">${window.formatDateThai(item.deletedAt.split('T')[0])}</td><td class="p-4 text-center">${typeLabel}</td><td class="p-4 text-xs text-slate-600">${detailText}</td><td class="p-4 text-center flex justify-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity"><button onclick="window.restoreTrashItem('${item.trashId}')" class="px-3 py-1.5 bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg text-[11px] font-bold shadow-sm transition-colors"><i class="fa-solid fa-rotate-left mr-1"></i> กู้คืน</button><button onclick="window.hardDeleteTrashItem('${item.trashId}')" class="w-8 h-8 bg-white border border-rose-200 text-rose-500 hover:bg-rose-500 hover:text-white rounded-lg text-xs font-bold shadow-sm transition-colors"><i class="fa-solid fa-xmark"></i></button></td>`; tbody.appendChild(tr);
+            });
+        };
+        window.restoreTrashItem = function(trashId) { window.executeWithSyncAndSave(() => { const index = trashItems.findIndex(t => t.trashId === trashId); if(index > -1) { const item = trashItems[index]; if(item.dataType === 'inventory') inventory.push(item.data); else if(item.dataType === 'user') systemUsers.push(item.data); else if(item.dataType === 'transaction') transactions.push(item.data); trashItems.splice(index, 1); } }, 'กู้คืนสำเร็จ', () => window.renderTrash()); };
+        window.hardDeleteTrashItem = function(trashId) { Swal.fire({ title: 'ลบถาวร?', icon: 'error', showCancelButton: true, confirmButtonText: 'ลบถาวร', confirmButtonColor: '#ef4444' }).then((res) => { if(res.isConfirmed) { window.executeWithSyncAndSave(() => { trashItems = trashItems.filter(t => t.trashId !== trashId); }, 'ลบถาวรแล้ว', () => window.renderTrash()); } }); };
+        window.emptyTrash = function() { if(trashItems.length === 0) return; Swal.fire({ title: 'ล้างถังขยะทั้งหมด?', icon: 'error', showCancelButton: true, confirmButtonText: 'ใช่, ล้างถังขยะ', confirmButtonColor: '#ef4444' }).then((res) => { if(res.isConfirmed) { window.executeWithSyncAndSave(() => { trashItems = []; }, 'เคลียร์ถังขยะเรียบร้อย', () => window.renderTrash()); } }); };
+
+        window.openModal = function(id) { const modal = document.getElementById(id); if (modal) { modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); }, 10); } };
+        window.closeModal = function(id) { const modal = document.getElementById(id); if (modal) { modal.classList.add('opacity-0'); setTimeout(() => { modal.classList.add('hidden'); }, 300); } };
+
+        window.openQrModal = function() { const qrContainer = document.getElementById('qrcode-container'); if(!qrContainer) return; qrContainer.innerHTML = ''; let url = window.location.href.split('?')[0] + "?mode=emp"; const urlTextEl = document.getElementById('qr-url-text'); if(urlTextEl) urlTextEl.innerText = url; new QRCode(qrContainer, { text: url, width: 160, height: 160, colorDark: "#0f172a", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H }); window.openModal('qr-modal'); };
+        window.copyQrLink = function() { const text = document.getElementById('qr-url-text').innerText; if(!text) return; try { if(navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text); } else { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); } Swal.fire({icon: 'success', title: 'คัดลอกลิงก์แล้ว', timer: 1000, showConfirmButton: false}); } catch(e){} };
+
+        // Initialization & Auto-sync Timer
+        document.addEventListener('DOMContentLoaded', () => {
+            if(document.getElementById('chk-date')) document.getElementById('chk-date').value = new Date().toISOString().split('T')[0];
+            Chart.defaults.font.family = "'Prompt', sans-serif";
+            
+            // Layout History
+            const ht = document.getElementById('history-toolbar'); const hf = document.getElementById('history-filters'); const th = document.getElementById('history-header-template');
+            if (ht && hf && th) { const ch = document.getElementById('consumed-header-anchor'); const cf = document.getElementById('consumed-filters-anchor'); if(ch) ch.appendChild(ht); if(cf) cf.appendChild(hf); th.classList.remove('hidden'); }
+
+            window.isEmployeeMode = (new URLSearchParams(window.location.search).get('mode') === 'emp') || (typeof window.SERVER_MODE !== 'undefined' && window.SERVER_MODE === 'emp'); 
+            
+            if (window.isEmployeeMode) {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('main-app-container').style.display = 'flex';
+                document.getElementById('main-app-container').style.opacity = '1';
+                window.applyRoleMode(); currentTab = 'checkout'; window.switchTab('checkout');
+            } else {
+                document.getElementById('login-overlay').style.display = 'flex';
+            }
+
+            window.fetchDataFromServer();
+            setInterval(window.backgroundSync, 15000); 
+        });
+    </script>
+</body>
+</html>
